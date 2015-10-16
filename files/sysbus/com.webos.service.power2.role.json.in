@@ -1,0 +1,20 @@
+{
+       "exeName":"@WEBOS_INSTALL_SBINDIR@/powermgr",
+       "type": "regular",
+       "allowedNames": ["com.webos.service.power2"],
+       "permissions": [
+           {
+               "service":"com.webos.service.power2",
+               "inbound":["*"],
+               "outbound":["com.webos.service.telephony",
+                           "com.webos.settingsservice",
+                           "com.palm.messagingrouter",
+                           "com.lge.service.knockcode",
+                           "com.webos.sensord",
+                           "com.palm.lunabus",
+                           "com.webos.keys",
+                           "com.webos.service.alarm"]
+           }
+       ]
+   }
+

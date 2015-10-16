@@ -1,0 +1,23 @@
+{
+    "contexts" : [
+        {
+            "name" : "powermgr",
+            "level" : "info",
+            "logProcessIds" : true,
+            "logThreadIds" : true,
+            "logToConsole" : true,
+            "rules" : [
+                {"filter" : "*.*", "output" : "powermgr"}
+            ]
+        }
+    ],
+
+    "outputs" : [
+        {
+            "name" : "powermgr",
+            "file" : "/var/log/pms.log",
+            "maxSize" : 2000,
+            "rotations" : 5
+        }
+    ]
+}
