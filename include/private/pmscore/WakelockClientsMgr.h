@@ -22,12 +22,14 @@ class WakelockClientsMgr
         virtual void addClient(const std::string &clientId,
                                const std::string &clientName) = 0;
         virtual void removeClient(const std::string &clientId) = 0;
+        virtual void removeClientByName(const std::string &clientName) = 0;
         virtual void setWakelock(const std::string &clienId, int timeout) = 0;
         virtual void clearWakelock(const std::string &clientId) = 0;
         virtual bool isClientExist(const std::string &clienId) = 0;
         virtual bool isWakelockSet(const std::string &clientId) = 0;
         virtual int getWakelockTimeout(const std::string &clientId) const = 0;
         virtual int getWakelockCount() const = 0;
+        virtual void updateClientRegistered(const std::string &clientId, bool isRegister) = 0;
 };
 #endif /* _WAKELOCKCLIENTSMGR_H_ */
 

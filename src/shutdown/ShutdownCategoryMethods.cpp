@@ -91,7 +91,7 @@ bool ShutdownCategoryMethods::machineReboot(LSMessage &message)
     pbnjson::JValue responseObj = pbnjson::Object();
     pbnjson::JValue requestObj;
     std::string reason;
-    const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(reason, string)));
+    const std::string schema = RELAXED_SCHEMA(PROPS_2(PROP(reason, string), PROP(params, string))REQUIRED_1(reason));
     int parseError = 0;
 
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
@@ -100,10 +100,16 @@ bool ShutdownCategoryMethods::machineReboot(LSMessage &message)
         return true;
     }
 
-    reason = requestObj["reason"].asString();
-    NyxUtil::getInstance().shutdown(reason);
-    responseObj.put("returnValue", true);
-    LSUtils::postToClient(request, responseObj);
+    mReboot = true;
+
+    if (!mShutdownStarted) {
+        LSMessageRef(&message);
+        startShutdown(message);
+    } else {
+        responseObj.put("returnValue", true);
+        LSUtils::postToClient(request, responseObj);
+    }
+
     return true;
 }
 
@@ -145,17 +151,41 @@ bool ShutdownCategoryMethods::machineOff(LSMessage &message)
         return true;
     }
 
-    shutdownReason = requestObj["reason"].asString();
-    NyxUtil::getInstance().reboot(shutdownReason);
+    mReboot = false;
 
-    responseObj.put("returnValue", true);
-    LSUtils::postToClient(request, responseObj);
+    if (!mShutdownStarted) {
+        LSMessageRef(&message);
+        startShutdown(message);
+    } else {
+        responseObj.put("returnValue", true);
+        LSUtils::postToClient(request, responseObj);
+    }
+
     return true;
+}
+
+void ShutdownCategoryMethods::startShutdown(LSMessage &message)
+{
+    struct timespec tv;
+    system(SHUTDOWN_WAKE_LOCK);
+
+    if (mReboot) {
+        system("initctl emit --no-wait machineReboot");
+    } else {
+        system("initctl emit --no-wait machineOff");
+    }
+
+    /* Wait for 200ms. */
+    tv.tv_sec = 0;
+    tv.tv_nsec = 200 * 1000000;
+    nanosleep(&tv, NULL);
+    std::thread(&ShutdownCategoryMethods::run, this, std::ref(message)).detach();
 }
 
 void ShutdownCategoryMethods::run(LSMessage &message)
 {
     std::unique_ptr<ShutdownStateHandler> shutdownstateHandle(new ShutdownStateHandler());
+    shutdownstateHandle->setRebootMode(mReboot);
 
     if (!shutdownstateHandle || !shutdownstateHandle->init(mRefLsHandle, std::ref(*mAppsMgr), std::ref(*mServicesMgr))) {
         PMSLOG_INFO(MSGID_SHUTDOWN_DEBUG, 0, "memory allocation error");
@@ -166,7 +196,6 @@ void ShutdownCategoryMethods::run(LSMessage &message)
     }
 
     ShutdownEvent event = ShutdownEventInit;
-    int timeout = 15; // 15 sec
     std::unique_lock<std::mutex> lock(mShutdownThreadMtx);
 
     while (true) {
@@ -184,7 +213,7 @@ void ShutdownCategoryMethods::run(LSMessage &message)
             break;
         }
 
-        if (std::cv_status::timeout == mShutdownThreadCV.wait_for(lock, std::chrono::seconds(timeout))) {
+        if (std::cv_status::timeout == mShutdownThreadCV.wait_for(lock, std::chrono::seconds(MIN_WAIT_TIME_FOR_SHUTDOWN))) {
             event = ShutdownEventTimeout;
             PMSLOG_INFO(MSGID_SHUTDOWN_DEBUG, 0, "Thread  timeout happened");
         } else {
@@ -197,7 +226,25 @@ void ShutdownCategoryMethods::run(LSMessage &message)
 void ShutdownCategoryMethods::sendInitiateReply(LSMessage &message)
 {
     LS::Message request(&message);
+    pbnjson::JValue requestObj;
     pbnjson::JValue responseObj = pbnjson::Object();
+    int parseError = 0;
+
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+        responseObj.put("reason", "Unknown");
+    } else {
+        responseObj.put("reason", requestObj["reason"].asString());
+        responseObj.put("params", requestObj["params"].asString());
+    }
+
+    NyxUtil::getInstance().setRtcAlarm();
+
+    if (mReboot) {
+        NyxUtil::getInstance().reboot(requestObj["reason"].asString(), requestObj["params"].asString());
+    } else {
+        NyxUtil::getInstance().shutdown(requestObj["reason"].asString());
+    }
+
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
     LSMessageUnref(&message);
@@ -262,7 +309,20 @@ bool ShutdownCategoryMethods::shutdownApplicationsRegister(LSMessage &message)
     pbnjson::JValue responseObj = pbnjson::Object();
     pbnjson::JValue requestObj;
 
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+    LSHandle *messageHandle = LSMessageGetConnection(&message);
+    std::string schema;
+
+    if (messageHandle == mRefLsHandle.get()) {
+        schema = STRICT_SCHEMA(PROPS_1(PROP(clientName, string))REQUIRED_1(clientName));
+    } else {
+        schema = RELAXED_SCHEMA(PROPS_1(PROP(clientName, string))REQUIRED_1(clientName));
+    }
+
+#else
     const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(clientName, string))REQUIRED_1(clientName));
+#endif
+
     int parseError = 0;
 
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
@@ -378,8 +438,20 @@ bool ShutdownCategoryMethods::shutdownServicesRegister(LSMessage &message)
     pbnjson::JValue responseObj = pbnjson::Object();
     pbnjson::JValue requestObj;
     int parseError = 0;
-    const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(clientName, string)
-                                                    )REQUIRED_1(clientName));
+
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+    LSHandle *messageHandle = LSMessageGetConnection(&message);
+    std::string schema;
+
+    if (messageHandle == mRefLsHandle.get()) {
+        schema = STRICT_SCHEMA(PROPS_1(PROP(clientName, string))REQUIRED_1(clientName));
+    } else {
+        schema = RELAXED_SCHEMA(PROPS_1(PROP(clientName, string))REQUIRED_1(clientName));
+    }
+
+#else
+    const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(clientName, string))REQUIRED_1(clientName));
+#endif
 
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
         PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "shutdownServicesRegister schema validation failed");
@@ -448,15 +520,16 @@ bool ShutdownCategoryMethods::shutdownServicesAck(LSMessage &message)
     // get the clientId
     std::string clientId = requestObj["clientId"].asString();
     time_t diff = NyxUtil::getInstance().getRTCTime() - mStartTime;
-    mServicesMgr->setAck(clientId, true, static_cast<double>(diff));
+    bool isAck = requestObj["isAck"].asBool();
+    mServicesMgr->setAck(clientId, isAck, static_cast<double>(diff));
 
     if (mServicesMgr->isAllClientsAcknowledged()) {
         mShutdownThreadCV.notify_all();
     }
 
     responseObj.put("returnValue", true);
+    responseObj.put("clientId", clientId);
     LSUtils::postToClient(request, responseObj);
-
     return true;
 }
 

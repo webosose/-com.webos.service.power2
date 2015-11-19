@@ -42,12 +42,27 @@ class ShutdownCategoryMethods
 
         void run(LSMessage &message);
         void deregisterAppsServicesClient(const std::string &clientId);
+        ShutdownClientsMgr *getShutDownClientMgr()
+        {
+            return mServicesMgr;
+        }
+        time_t getStartTime()
+        {
+            return mStartTime;
+        }
+        void notifyAll()
+        {
+            mShutdownThreadCV.notify_all();
+        }
 
     private:
         void addSubscription(LSMessage &message, const std::string &key);
         void sendInitiateReply(LSMessage &message);
+        void startShutdown(LSMessage &message);
 
     private:
+        bool mShutdownStarted = false;
+        bool mReboot = false;
         LS::Handle &mRefLsHandle;
         time_t mStartTime;
         std::mutex mShutdownThreadMtx;

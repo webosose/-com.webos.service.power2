@@ -25,7 +25,7 @@ class NyxUtil
         static NyxUtil &getInstance();
 
         void shutdown(const std::string &reason);
-        void reboot(const std::string &reason);
+        void reboot(const std::string &reason, const std::string &params);
         void setRtcAlarm();
 
     private:

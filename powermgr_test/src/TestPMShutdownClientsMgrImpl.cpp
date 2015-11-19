@@ -10,6 +10,8 @@
 //
 // LICENSE@@@
 
+#include <memory>
+
 #include "PMSCommon.h"
 #include "PmsLuna2Utils.h"
 #include "PowerManagerService.h"
@@ -36,9 +38,9 @@ public:
 TEST_F(TestPMShutdownClientsMgrImpl, PMShutdownClientsMgrImpl_addClient)
 {
     printf("------------------ BEGIN PMShutdownClientsMgrImpl_addClient ----------------------------\n");
-    ShutdownClientsMgrImpl *lockclientmgr= new ShutdownClientsMgrImpl();
-    std::string clientId;
-    std::string clientName;
+    std::unique_ptr<ShutdownClientsMgr> lockclientmgr(new ShutdownClientsMgrImpl());
+    std::string clientId("/var/run/ls2/d2DecF.4");
+    std::string clientName("com.palm.dummy");
     lockclientmgr->addClient(clientId, clientName);
     printf("------------------ END PMShutdownClientsMgrImpl_addClient----------------------------\n");
 }

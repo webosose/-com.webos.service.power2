@@ -21,9 +21,16 @@
 #include "PMSCommon.h"
 #include "WakelockClientsMgrImpl.h"
 
-void sendSuspendSignal();
-void sendResumeSignal();
+void sendSuspendSignal(int type);
+void sendResumeSignal(int resumeType);
 LSHandle *gHandle = nullptr;
+
+
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+LSHandle *gSleepdLsHandle = nullptr;
+LSHandle *gDisplayLsHandle = nullptr;
+bool gSuspendedState = false;
+#endif
 
 static const std::string uriAlarmClear("palm://com.webos.service.alarm/clear");
 static const std::string uriNotifyAlarmExpiry("palm://com.webos.service.power2/notifyAlarmExpiry");
@@ -36,12 +43,17 @@ enum PowerManagerServiceConsts {
 
 PowerManagerService::PowerManagerService(GMainLoop *mainLoop) : LS::Handle(LS::registerService(serviceUri.c_str())),
     mLoopdata(mainLoop)
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+    , mSleepdHandle(LS::registerService(sleepdUri.c_str())),
+    mDisplayHandle(LS::registerService(displayUri.c_str()))
+#endif
 {
     LS_CREATE_CATEGORY_BEGIN(PowerManagerService, rootAPI)
     LS_CATEGORY_METHOD(registerClient)
     LS_CATEGORY_METHOD(setKeepAwake)
     LS_CATEGORY_METHOD(clearKeepAwake)
     LS_CATEGORY_METHOD(notifyAlarmExpiry)
+    LS_CATEGORY_METHOD(clientCancelByName)
     LS_CREATE_CATEGORY_END
 
     static const LSSignal pmsSignals[] = {
@@ -59,7 +71,12 @@ PowerManagerService::PowerManagerService(GMainLoop *mainLoop) : LS::Handle(LS::r
     }
 
     gHandle = this->get();
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+    gSleepdLsHandle = mSleepdHandle.get();
+    gDisplayLsHandle = mDisplayHandle.get();
+#endif
 }
+
 
 PowerManagerService::~PowerManagerService()
 {
@@ -85,8 +102,6 @@ bool PowerManagerService::init()
 
     setSubscriptionCancelCallback();
 
-    gHandle = this->get();
-
     if (!initPmSupportInterface()) {
         return false;
     }
@@ -99,27 +114,41 @@ bool PowerManagerService::initPmSupportInterface()
     mSupportCallback.resume_cb = ::sendResumeSignal;
     mSupportCallback.suspend_cb = ::sendSuspendSignal;
 
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+
+    if (!pms_support_init2(this->get(), mDisplayHandle.get(), mSleepdHandle.get(), &mSupportCallback, this)) {
+        return false;
+    }
+
+#else
+
     if (!pms_support_init(this->get(), &mSupportCallback, this)) {
         return false;
     }
 
+#endif
+
     return true;
 }
 
-void sendSuspendSignal()
+void sendSuspendSignal(int type)
 {
+    bool retVal = false;
     LSError lserror;
-    LSErrorInit(&lserror);
 
-    bool retVal = LSSignalSend(gHandle,
-                               "luna://com.palm.sleep/com/palm/power/suspend",
-                               "{}", &lserror);
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+    LSErrorInit(&lserror);
+    gSuspendedState = true;
+    retVal = LSSignalSend(gSleepdLsHandle,
+                          "luna://com.palm.sleep/com/palm/power/suspended",
+                          "{}", &lserror);
 
     if (!retVal) {
         PMSLOG_ERROR(MSGID_SUSPEND_SIG_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message), "could not send suspend signal(sleepd)");
-        LSErrorFree(&lserror);
     }
 
+    LSErrorFree(&lserror);
+#endif
     LSErrorInit(&lserror);
     retVal = LSSignalSend(gHandle,
                           "luna://com.webos.service.power2/suspend",
@@ -127,35 +156,38 @@ void sendSuspendSignal()
 
     if (!retVal) {
         PMSLOG_ERROR(MSGID_SUSPEND_SIG_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message), "could not send suspend signal");
-        LSErrorFree(&lserror);
     }
 
+    LSErrorFree(&lserror);
     PMSLOG_DEBUG("sendSuspendSignal");
 }
 
-void sendResumeSignal()
+void sendResumeSignal(int resumeType)
 {
-    PMSLOG_DEBUG("sendResumeSignal");
+    bool retVal = false;
+    PMSLOG_DEBUG("sendResumeSignal--> resumeType = %d", resumeType);
     LSError lserror;
-    LSErrorInit(&lserror);
-
     char *payload = g_strdup_printf(
-                        "{\"resumetype\":%d}", 0);
+                        "{\"resumetype\":%d}", resumeType);
 
     if (!payload) {
         PMSLOG_ERROR(MSGID_MEM_ALLOC_FAIL, 0, "memory allocation error");
         return;
     }
 
-    bool retVal = LSSignalSend(gHandle,
-                               "luna://com.palm.sleep/com/palm/power/resume",
-                               payload, &lserror);
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+    LSErrorInit(&lserror);
+    gSuspendedState = false;
+    retVal = LSSignalSend(gSleepdLsHandle,
+                          "luna://com.palm.sleep/com/palm/power/resume",
+                          payload, &lserror);
 
     if (!retVal) {
         PMSLOG_ERROR(MSGID_RESUME_SIG_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message), "could not send resume signal(sleepd)");
-        LSErrorFree(&lserror);
     }
 
+    LSErrorFree(&lserror);
+#endif
     retVal = LSSignalSend(gHandle,
                           "luna://com.webos.service.power2/resume",
                           payload, &lserror);
@@ -164,11 +196,18 @@ void sendResumeSignal()
 
     if (!retVal) {
         PMSLOG_ERROR(MSGID_RESUME_SIG_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message), "could not send resume signal");
-        LSErrorFree(&lserror);
     }
 
+    LSErrorFree(&lserror);
     g_free(payload);
 }
+
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+bool PowerManagerService::isSuspendedState()
+{
+    return gSuspendedState;
+}
+#endif
 
 /**
 @brief keep the device awake for specified number of seconds.
@@ -202,6 +241,13 @@ bool PowerManagerService::setKeepAwake(LSMessage &message)
 
     const std::string schema = STRICT_SCHEMA(PROPS_2(PROP(clientId, string), PROP(timeout, integer))REQUIRED_2(clientId,
                                timeout));
+
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "identify schema validation failed");
+        LSUtils::respondWithError(request, errorParseFailed, 0);
+        return true;
+    }
+
     std::string sender = LSMessageGetSenderServiceName(&message);
 
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
@@ -210,23 +256,44 @@ bool PowerManagerService::setKeepAwake(LSMessage &message)
         return true;
     }
 
+    int timeout = requestObj["timeout"].asNumber<int32_t>();
     std::string clientId = requestObj["clientId"].asString();
 
-    int timeout = requestObj["timeout"].asNumber<int32_t>();
+    char kernelWakelock[512] = {0,};
+    snprintf(kernelWakelock , 512 , "echo %s 1000000000 > /sys/power/wake_lock" , sender.c_str());
+    system(kernelWakelock);
+
+    if (setAwake(timeout, request, clientId, sender)) {
+        responseObj.put("returnValue", true);
+        LSUtils::postToClient(request, responseObj);
+    }
+
+    return true;
+}
+
+bool PowerManagerService::setAwake(int timeout, LS::Message &request, std::string clientId, std::string sender,
+                                   bool isTimeout)
+{
     const int maxSeconds = (24 * 60 * 60) - 1; // max duration: 23:59:59
 
     // if clientId is invalid or wakelock is set already or timeout is invalid
     // return error
-    if ((timeout < 1 || timeout > maxSeconds) || (!mWakelocksMgr->isClientExist(clientId))) {
-        PMSLOG_WARNING(MSGID_SET_KEEP_AWAKE, 0, "invalid timeout/clientId");
+    if (isTimeout) {
+        if ((timeout < 1 || timeout > maxSeconds) || (!mWakelocksMgr->isClientExist(clientId))) {
+            PMSLOG_WARNING(MSGID_SET_KEEP_AWAKE, 0, "invalid timeout/clientId");
+            LSUtils::respondWithError(request, errorInvalidParam, 0);
+            return false;
+        }
+    } else if (!mWakelocksMgr->isClientExist(clientId)) {
+        PMSLOG_WARNING(MSGID_SET_KEEP_AWAKE, 0, "invalid clientId");
         LSUtils::respondWithError(request, errorInvalidParam, 0);
-        return true;
+        return false;
     }
 
     if (mWakelocksMgr->isWakelockSet(clientId)) {
-        PMSLOG_WARNING(MSGID_SET_KEEP_AWAKE, 0, "wakeloc is already set");
+        PMSLOG_WARNING(MSGID_SET_KEEP_AWAKE, 0, "wakelock is already set");
         LSUtils::respondWithError(request, errorKeepAwakeSet, 0);
-        return true;
+        return false;
     }
 
     //set the alarm. clientId will be used as key
@@ -234,18 +301,16 @@ bool PowerManagerService::setKeepAwake(LSMessage &message)
         mWakelocksMgr->setWakelock(clientId, timeout);
         //notify to library
         pms_support_notify_wakeup(mWakelocksMgr->getWakelockCount());
-        PMSLOG_DEBUG("alarm is set");
+        PMSLOG_DEBUG("wakelock is set");
     } else {
         LSUtils::respondWithError(request, errorInternalError, 0);
-        return true;
+        return false;
     }
 
     std::stringstream kernelWakelock;
     kernelWakelock << "echo " << sender << " 1000000000 > /sys/power/wake_lock";
     system(kernelWakelock.str().c_str());
 
-    responseObj.put("returnValue", true);
-    LSUtils::postToClient(request, responseObj);
     return true;
 }
 
@@ -314,6 +379,7 @@ bool PowerManagerService::clearKeepAwake(LSMessage &message)
     pbnjson::JValue responseObj = pbnjson::Object();
     pbnjson::JValue requestObj;
     int parseError = 0;
+
     const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(clientId, string))REQUIRED_1(clientId));
 
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
@@ -322,8 +388,10 @@ bool PowerManagerService::clearKeepAwake(LSMessage &message)
         return true;
     }
 
+    std::string clientId;
+
     /********** clientId ***********/
-    std::string clientId = requestObj["clientId"].asString();
+    clientId = requestObj["clientId"].asString();
 
     // if client doesn't exist return error
     if (!mWakelocksMgr->isClientExist(clientId)) {
@@ -341,9 +409,10 @@ bool PowerManagerService::clearKeepAwake(LSMessage &message)
     // clear the alarm and clear the wakelock
     clearAlarm(clientId);
     mWakelocksMgr->clearWakelock(clientId);
-
+    pms_support_notify_wakeup(mWakelocksMgr->getWakelockCount());
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
@@ -351,6 +420,7 @@ bool PowerManagerService::clearAlarm(const std::string &key)
 {
     pbnjson::JValue jsonObject = pbnjson::Object();
     jsonObject.put("key", key);
+    jsonObject.put("appId", "appclear");
 
     std::string alarmClearPayload;
 
@@ -403,6 +473,7 @@ bool PowerManagerService::registerClient(LSMessage &message)
 
     //get the clientId
     std::string clientName = requestObj["clientName"].asString();
+
     std::string clientId = request.getUniqueToken();
 
     if (clientName.empty()) {
@@ -413,9 +484,11 @@ bool PowerManagerService::registerClient(LSMessage &message)
     addSubscription(message);
     // add the client to client list
     mWakelocksMgr->addClient(clientId, clientName);
+    mWakelocksMgr->updateClientRegistered(clientId, true);
 
     PMSLOG_DEBUG("[%s] client registered. clientName[%s] clientId[%s]",
                  __FUNCTION__, clientName.c_str(), clientId.c_str());
+
 
     //return response
     responseObj.put("returnValue", true);
@@ -491,9 +564,80 @@ void PowerManagerService::setSubscriptionCancelCallback()
     if (!retVal) {
         PMSLOG_ERROR(MSGID_LS_SUBSCRIB_SETFUN_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message),
                      "Error in setting subscription cancel function");
+    }
+
+    LSErrorFree(&lserror);
+
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+    LSErrorInit(&lserror);
+
+    retVal = LSSubscriptionSetCancelFunction(mSleepdHandle.get(),
+             clientSubscriptionCancel, this, &lserror);
+
+    if (!retVal) {
+        PMSLOG_ERROR(MSGID_LS_SUBSCRIB_SETFUN_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message),
+                     "Error in setting subscription cancel function");
+    }
+
+    retVal = LSSubscriptionSetCancelFunction(mDisplayHandle.get(),
+             cancelSubscription, this, &lserror);
+
+    if (!retVal) {
+        PMSLOG_ERROR(MSGID_LS_SUBSCRIB_SETFUN_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message),
+                     "Error in setting Display subscription cancel function");
         LSErrorFree(&lserror);
     }
+
+    LSErrorFree(&lserror);
+#endif
+
 }
+
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+bool PowerManagerService::cancelSubscription(LSHandle *sh, LSMessage *msg, void *ctx)
+{
+    LSError lserror;
+    LS::Message request(msg);
+    pbnjson::JValue requestObj;
+    int parseError = 0;
+    bool success = false;
+    LSErrorInit(&lserror);
+
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+        PMSLOG_DEBUG("cancel subscription schema failed");
+        return true;
+    }
+
+    PMSLOG_DEBUG("pms-display subscription cancel function is called");
+
+    if (!strcmp(LSMessageGetMethod(msg), "dimModeEnable") &&
+        (!strcmp(LSMessageGetCategory(msg), "/control") || !strcmp(LSMessageGetCategory(msg), "/"))) {
+        std::string clientName = requestObj["client"].asString();
+        char *payload = g_strdup_printf("{\"client\":\"%s\"}", clientName.c_str());
+        PMSLOG_DEBUG("pms-display subscription cancel function is called %d", gDisplayLsHandle);
+        success = LSCallOneReply(gDisplayLsHandle, "palm://com.webos.service.power2/wearable/dimModeDisable", payload,
+                                 PowerManagerService::dimModeDisableCallback,
+                                 NULL, NULL, &lserror);
+
+        if (!success) {
+            PMSLOG_DEBUG("cancelSubscription failed");
+        }
+
+        if (payload) {
+            g_free(payload);
+        }
+    }
+
+    LSErrorFree(&lserror);
+    return true;
+}
+
+bool PowerManagerService::dimModeDisableCallback(LSHandle *sh, LSMessage *message, void *ctx)
+{
+    PMSLOG_DEBUG("%s", __FUNCTION__);
+    return true;
+}
+#endif
 
 bool PowerManagerService::clientSubscriptionCancel(LSHandle *sh, LSMessage *msg, void *ctx)
 {
@@ -509,4 +653,52 @@ void PowerManagerService::deregisterClient(const std::string &clientId)
     mShutdownCategoryHandle->deregisterAppsServicesClient(clientId);
     mWakelocksMgr->removeClient(clientId);
 }
+
+ShutdownCategoryMethods &PowerManagerService::getShutdownCategoryHandle()
+{
+    return *mShutdownCategoryHandle;
+}
+
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+LS::Handle &PowerManagerService::getSleepdLsHandle()
+{
+    return mSleepdHandle;
+}
+
+LS::Handle &PowerManagerService::getDisplayLsHandle()
+{
+    return mDisplayHandle;
+}
+
+
+
+bool PowerManagerService::clientCancelByName(LSMessage &message)
+{
+    LS::Message request(&message);
+    pbnjson::JValue responseObj = pbnjson::Object();
+    pbnjson::JValue requestObj;
+    int parseError = 0;
+    const std::string schema = RELAXED_SCHEMA(PROPS_1(PROP(clientName, string)));
+
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "clientCancelByName schema validation failed");
+        LSUtils::respondWithError(request, errorParseFailed, 0);
+        return true;
+    }
+
+    /********** clientName ***********/
+    std::string clientName = requestObj["clientName"].asString();
+    PMSLOG_DEBUG("clientCancelByName called --> client = %s", clientName.c_str());
+    mWakelocksMgr->removeClientByName(clientName);
+
+    responseObj.put("returnValue", true);
+    LSUtils::postToClient(request, responseObj);
+    return true;
+}
+
+bool PowerManagerService::isClientRegistered(const std::string &clientId)
+{
+    return mWakelocksMgr->isClientExist(clientId);
+}
+#endif
 

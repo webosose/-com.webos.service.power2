@@ -50,9 +50,18 @@ class ShutdownStateHandler
         }
 
         void stateDispatch(ShutdownEvent event);
+        void setRebootMode(bool state)
+        {
+            mRebootState = state;
+        }
+        bool getRebootState()
+        {
+            return mRebootState;
+        }
 
     private:
         bool mMovenext = false;
+        bool mRebootState = false;
         ShutdownState mNextState = kPowerShutdownNone;
         std::map<ShutdownState, std::unique_ptr<State>> mStates;
 };

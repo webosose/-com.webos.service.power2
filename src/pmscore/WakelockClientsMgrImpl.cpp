@@ -37,6 +37,24 @@ void WakelockClientsMgrImpl::removeClient(const std::string &clientId)
     }
 }
 
+void WakelockClientsMgrImpl::removeClientByName(const std::string &clientName)
+{
+    std::string clientId;
+
+    //get clientId if client exists
+    for (const auto &client : mClients) {
+        if (client.second.mName == clientName) {
+            clientId = client.first;
+            break;
+        }
+    }
+
+    //remove the clientInfo if it exist
+    if (!clientId.empty()) {
+        mClients.erase(clientId);
+    }
+}
+
 void WakelockClientsMgrImpl::setWakelock(const std::string &clientId, int timeout)
 {
     const auto &it = mClients.find(clientId);
@@ -47,7 +65,7 @@ void WakelockClientsMgrImpl::setWakelock(const std::string &clientId, int timeou
 
     WakelockClient &client = it->second;
 
-    if (client.mWakelockSet) {
+    if (client.mRegWakeLock && client.mWakelockSet) {
         return;
     }
 
@@ -67,7 +85,22 @@ void WakelockClientsMgrImpl::clearWakelock(const std::string &clientId)
     WakelockClient &client = it->second;
     client.mWakelockSet = false;
     client.mTimeout = 0;
-    mWakelocksCount--;
+
+    if (mWakelocksCount > 0) {
+        mWakelocksCount--;
+    }
+}
+
+void  WakelockClientsMgrImpl::updateClientRegistered(const std::string &clientId, bool isRegister)
+{
+    const auto &it = mClients.find(clientId);
+
+    if (mClients.end() == it) {
+        return;
+    }
+
+    WakelockClient &client = it->second;
+    client.mRegWakeLock = isRegister;
 }
 
 bool WakelockClientsMgrImpl::isClientExist(const std::string &clientId)

@@ -21,6 +21,8 @@ class ShutdownCategoryMethods;
 class WakelockClientsMgr;
 
 const std::string serviceUri = "com.webos.service.power2";
+const std::string displayUri = "com.palm.display";
+const std::string sleepdUri = "com.palm.sleep";
 
 class PowerManagerService: public LS::Handle
 {
@@ -37,12 +39,37 @@ class PowerManagerService: public LS::Handle
         void addSubscription(LSMessage &message);
         void setSubscriptionCancelCallback();
         static bool clientSubscriptionCancel(LSHandle *sh, LSMessage *msg, void *ctx);
+        ShutdownCategoryMethods &getShutdownCategoryHandle();
+
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+        void setActivityStart(bool state)
+        {
+            mActivityStart = state;
+        }
+        GMainLoop *getGMainLoop()
+        {
+            return mLoopdata;
+        }
+        bool isClientRegistered(const std::string &clientId);
+        bool isSuspendedState();
+        bool clientCancelByName(LSMessage &message);
+        LS::Handle &getSleepdLsHandle();
+        LS::Handle &getDisplayLsHandle();
+
+        static bool cancelSubscription(LSHandle *sh, LSMessage *msg, void *ctx);
+        static bool dimModeDisableCallback(LSHandle *sh, LSMessage *message, void *ctx);
+        WakelockClientsMgr *getWakeLockManageRef()
+        {
+            return mWakelocksMgr;
+        }
+#endif
+        bool setAwake(int timeout, LS::Message &request, std::string clientId, std::string sender, bool isTimeout = false);
+        bool clearAlarm(const std::string &key);
 
     private:
         bool initPmSupportInterface();
         bool exit(LSMessage &message);
         bool setAlarm(const std::string &key, int timeout);
-        bool clearAlarm(const std::string &key);
         void deregisterClient(const std::string &clientId);
 
     private:
@@ -50,6 +77,11 @@ class PowerManagerService: public LS::Handle
         pms_support_update_callbacks mSupportCallback;
         ShutdownCategoryMethods *mShutdownCategoryHandle = nullptr;
         WakelockClientsMgr *mWakelocksMgr = nullptr;
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+        bool mActivityStart = false;
+        LS::Handle mSleepdHandle;
+        LS::Handle mDisplayHandle;
+#endif
 };
 
 #endif //_PMS_MGR_SERVICE_H_

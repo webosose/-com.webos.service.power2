@@ -50,6 +50,7 @@
 #define MSGID_MEM_ALLOC_FAIL                      "MEM_ALLOC_FAIL"           // memory allocation is failed
 #define MSGID_SET_KEEP_AWAKE                      "SET_KEEP_AWAKE"           // setKeepAwake method
 #define MSGID_SCEMA_VAL_FAIL                      "SCHEMA_VALIDATION_FAIL"   // schema validation is failed
+#define MSGID_SERVER_STATUS_REGISTRY_FAIL         "SERVER_STATUS_REGISTRY_FAIL"  //server status registry failed
 
 /** config.c */
 #define MSGID_CONFIG_FILE_LOAD_ERR                "CONFIG_FILE_LOAD_ERR"     //Could not load config file from specified path

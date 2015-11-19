@@ -53,12 +53,27 @@ void NyxUtil::shutdown(const std::string &reason)
     nyx_system_shutdown(mNyxDeviceHandle, NYX_SYSTEM_NORMAL_SHUTDOWN, reason.c_str());
 }
 
-void NyxUtil::reboot(const std::string &reason)
+void NyxUtil::reboot(const std::string &reason, const std::string &params)
 {
     PMSLOG_INFO(MSGID_FRC_SHUTDOWN, 1, PMLOGKS("Reason", reason.c_str()),
                 "Pwrevents shutting down system");
+    nyx_system_reboot_type_t rebootType = NYX_SYSTEM_NORMAL_REBOOT;
+
+    if (reason.empty()) {
+        if (reason == "recovery") {
+            // Check params
+            if (params.empty()) {
+                if (params == "wipe-data") {
+                    rebootType = NYX_SYSTEM_RECOVERY_WIPE_DATA_REBOOT;
+                }
+            }
+        } else if (params == "laf") {
+            rebootType = NYX_SYSTEM_LAF_REBOOT;
+        }
+    }
+
     //TODO: fasthalt info has to be read from the configfile
-    nyx_system_reboot(mNyxDeviceHandle, NYX_SYSTEM_NORMAL_SHUTDOWN, reason.c_str());
+    nyx_system_reboot(mNyxDeviceHandle, (nyx_system_shutdown_type_t)rebootType, reason.c_str());
 }
 
 void NyxUtil::setRtcAlarm()

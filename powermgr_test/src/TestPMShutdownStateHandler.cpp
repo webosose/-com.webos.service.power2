@@ -49,7 +49,7 @@ TEST_F(TestPMShutdownStateHandler, PMShutdownStateHandler_getState)
     lockclientmgr->getState();
     printf("------------------ END PMShutdownStateHandler_getState----------------------------\n");
 }
-
+/*
 TEST_F(TestPMShutdownStateHandler, PMShutdownStateHandler_stateDispatch)
 {
     printf("------------------ BEGIN PMShutdownStateHandler_stateDispatch ----------------------------\n");
@@ -58,7 +58,7 @@ TEST_F(TestPMShutdownStateHandler, PMShutdownStateHandler_stateDispatch)
     lockclientmgr->stateDispatch(event);
     printf("------------------ END PMShutdownStateHandler_stateDispatch----------------------------\n");
 }
-
+*/
 TEST_F(TestPMShutdownStateHandler, PMShutdownStateHandler_setMoveNext)
 {
     printf("------------------ BEGIN PMShutdownStateHandler_setMoveNext ----------------------------\n");

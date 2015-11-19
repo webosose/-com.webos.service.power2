@@ -25,12 +25,14 @@ class WakelockClientsMgrImpl: public WakelockClientsMgr
 
         void addClient(const std::string &clientId, const std::string &clientName);
         void removeClient(const std::string &clientId);
+        void removeClientByName(const std::string &clientName);
         void setWakelock(const std::string &clienId, int timeout);
         void clearWakelock(const std::string &clientId);
         bool isClientExist(const std::string &clienId);
         bool isWakelockSet(const std::string &clientId);
         int getWakelockTimeout(const std::string &clientId) const;
         int getWakelockCount() const;
+        void updateClientRegistered(const std::string &clientId, bool isRegister);
 
     private:
         class WakelockClient
@@ -38,6 +40,7 @@ class WakelockClientsMgrImpl: public WakelockClientsMgr
             public:
                 std::string mName;
                 bool mWakelockSet = false;
+                bool mRegWakeLock = false;
                 int mTimeout = 0;
         };
         std::map<std::string, WakelockClient> mClients;

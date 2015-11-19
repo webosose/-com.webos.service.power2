@@ -61,6 +61,9 @@ include_directories(include/private/pmslogging)
 include_directories(include/private/shutdown)
 include_directories(include/private/util)
 include_directories(include/private/common)
+include_directories(include/private/sleepd)
+
+add_definitions(-DSLEEPD_BACKWARD_COMPATIBILITY)
 
 file(GLOB SOURCE_FILES src/*/*.cpp)
 

@@ -15,6 +15,7 @@
 #include "PowerManagerService.h"
 #include "PmsLogging.h"
 #include "PMSCommon.h"
+#include "SleepdCategoryMethods.h"
 
 static GMainLoop *mainLoop = nullptr;
 
@@ -60,6 +61,18 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
+    std::unique_ptr<SleepdCategoryMethods> sleepdMethods(new SleepdCategoryMethods(*pmService, pmService->getSleepdLsHandle()));
+
+    if (!(sleepdMethods && sleepdMethods->init())) {
+        PMSLOG_DEBUG("Unable to create SleepdCategoryMethods instance/initialize it");
+        g_main_loop_unref(mainLoop);
+        return EXIT_FAILURE;
+    }
+
+    pmService->getSleepdLsHandle().attachToLoop(mainLoop);
+    pmService->getDisplayLsHandle().attachToLoop(mainLoop);
+#endif
     pmService->attachToLoop(mainLoop);
 
     g_main_loop_run(mainLoop);
