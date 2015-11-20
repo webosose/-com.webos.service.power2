@@ -13,11 +13,22 @@
 #ifndef GIT_SRC_SLEEPD_SLEEPDTIMECATEGORY_H_
 #define GIT_SRC_SLEEPD_SLEEPDTIMECATEGORY_H_
 
+#include <luna-service2/lunaservice.hpp>
+
 class SleepdTimeCategory
 {
     public:
-        SleepdTimeCategory();
-        virtual ~SleepdTimeCategory();
+        SleepdTimeCategory(LS::Handle &refPowerdLsHandle);
+        ~SleepdTimeCategory() = default;
+
+        bool init(bool isPowerdUp);
+        bool alarmAddCalendar(LSMessage &message);
+        bool alarmAdd(LSMessage &message);
+        bool alarmQuery(LSMessage &message);
+        bool alarmRemove(LSMessage &message);
+
+    private:
+        LS::Handle &mRefPowerdLsHandle;
 };
 
 #endif /* GIT_SRC_SLEEPD_SLEEPDTIMECATEGORY_H_ */

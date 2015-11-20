@@ -50,17 +50,22 @@ class PowerManagerService: public LS::Handle
         {
             return mLoopdata;
         }
-        bool isClientRegistered(const std::string &clientId);
-        bool isSuspendedState();
+
         bool clientCancelByName(LSMessage &message);
         LS::Handle &getSleepdLsHandle();
+        LS::Handle &getPowerdLsHandle();
         LS::Handle &getDisplayLsHandle();
-
+        bool isClientRegistered(const std::string &clientId);
+        bool isSuspendedState();
         static bool cancelSubscription(LSHandle *sh, LSMessage *msg, void *ctx);
         static bool dimModeDisableCallback(LSHandle *sh, LSMessage *message, void *ctx);
         WakelockClientsMgr *getWakeLockManageRef()
         {
             return mWakelocksMgr;
+        }
+        bool getIsPowerdRegistered()
+        {
+            return mIsPowerdRegistered;
         }
 #endif
         bool setAwake(int timeout, LS::Message &request, std::string clientId, std::string sender, bool isTimeout = false);
@@ -79,8 +84,10 @@ class PowerManagerService: public LS::Handle
         WakelockClientsMgr *mWakelocksMgr = nullptr;
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
         bool mActivityStart = false;
+        bool mIsPowerdRegistered = false;
         LS::Handle mSleepdHandle;
         LS::Handle mDisplayHandle;
+        LS::Handle mPowerdHandle;
 #endif
 };
 

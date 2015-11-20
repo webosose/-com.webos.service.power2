@@ -20,9 +20,9 @@ class PowerManagerService;
 class SleepdPowerCategory
 {
     public:
-        SleepdPowerCategory(PowerManagerService &refHandle, LS::Handle &sleepdLsHandle);
+        SleepdPowerCategory(PowerManagerService &refHandle, LS::Handle &sleepdLsHandle, LS::Handle &powerdLsHandle);
         virtual ~SleepdPowerCategory() = default;
-        bool init();
+        bool init(bool isPowerdUp);
 
         SleepdPowerCategory(const SleepdPowerCategory &) = delete;
         SleepdPowerCategory &operator=(const SleepdPowerCategory &) = delete;
@@ -51,15 +51,21 @@ class SleepdPowerCategory
         bool batterySaverOnOff(LSMessage &message);
 
     private:
-        bool _powerdServiceStatusCb(LSHandle *sh, const char *serviceName, bool connected);
+        bool _batterydServiceStatusCb(LSHandle *sh, const char *serviceName, bool connected);
+        bool checkBatterydStatus();
+        int readLineFromFile(const char *path, char *buf, size_t count);
         static bool batteryStatusQuerySignal(LSHandle *sh, LSMessage *message, void *user_data);
         static bool chargerStatusQuerySignal(LSHandle *sh, LSMessage *message, void *user_data);
-        static bool powerdServiceStatusCb(LSHandle *sh,
-                                          const char *serviceName,
-                                          bool connected,
-                                          void *ctx)
+        static bool getFakeBatteryModeCallback(LSHandle *sh, LSMessage *message, void *ctx);
+        static bool setFakeBatteryModeCallback(LSHandle *sh, LSMessage *message, void *ctx);
+        static bool chargerStatusCallback(LSHandle *sh, LSMessage *message, void *ctx);
+        static bool batteryStatusCallback(LSHandle *sh, LSMessage *message, void *ctx);
+        static bool batterydServiceStatusCb(LSHandle *sh,
+                                            const char *serviceName,
+                                            bool connected,
+                                            void *ctx)
         {
-            return ((SleepdPowerCategory *) ctx)->_powerdServiceStatusCb(sh, serviceName, connected);
+            return ((SleepdPowerCategory *) ctx)->_batterydServiceStatusCb(sh, serviceName, connected);
         }
 
         static bool chargerConnected(LSHandle *sh, LSMessage *message, void *user_data);
@@ -67,11 +73,13 @@ class SleepdPowerCategory
     private:
         PowerManagerService &mRefPms;
         LS::Handle &mRefSleepdLsHandle;
+        LS::Handle &mRefPowerdLsHandle;
         LSHandle     *mPowerdHandle = nullptr;
         bool          mIsPowerdUp = false;
         bool          mIsRedirectionAvailable = false;
         bool          mIsChargerPresent = false;
         void          *mPowerdCookie;
+        void          *mBatterydCookie;
 };
 
 #endif /* _SLEEPDPOWERCATEGORY_H_ */

@@ -25,7 +25,7 @@ class SleepdTimeoutCategory;
 class SleepdCategoryMethods
 {
     public:
-        SleepdCategoryMethods(PowerManagerService &pmsRef, LS::Handle &sleepdLsHandle);
+        SleepdCategoryMethods(PowerManagerService &pmsRef, LS::Handle &sleepdLsHandle, LS::Handle &powerdLsHandle);
         ~SleepdCategoryMethods();
         bool init();
 
@@ -35,6 +35,7 @@ class SleepdCategoryMethods
     private:
         PowerManagerService    &mRefPowerManagerService;
         LS::Handle             &mRefSleepdLsHandle;
+        LS::Handle             &mRefPowerdLsHandle;
         SleepdPowerCategory    *mPtrSleepdPowerCategory = nullptr;
         SleepdShutdownCategory *mPtrSleepdShutdownCategory = nullptr;
         SleepdTimeCategory     *mPtrSleepdTimeCategory = nullptr;

@@ -17,12 +17,15 @@
 #include "NyxUtil.h"
 #include "ShutdownClientsMgr.h"
 
-SleepdShutdownCategory::SleepdShutdownCategory(ShutdownCategoryMethods &handle,
-        LS::Handle &refLsHandle) : mRefShutdownCategoryMethods(handle), mRefLsHandle(refLsHandle)
+SleepdShutdownCategory::SleepdShutdownCategory(ShutdownCategoryMethods &handle, LS::Handle &refLsHandle,
+        LS::Handle &refPowerdLsHandle) :
+    mRefShutdownCategoryMethods(handle),
+    mRefLsHandle(refLsHandle),
+    mRefPowerdLsHandle(refPowerdLsHandle)
 {
 }
 
-bool SleepdShutdownCategory::init()
+bool SleepdShutdownCategory::init(bool isPowerdUp)
 {
 
     LS_CREATE_CATEGORY_BEGIN(SleepdShutdownCategory, shutdownAPI)
@@ -37,7 +40,7 @@ bool SleepdShutdownCategory::init()
 
     static const LSSignal shutdownSignals[] = {
         { "shutdownApplications" },
-        {"shutdownServices" },
+        { "shutdownServices" },
         { },
     };
 
@@ -50,6 +53,18 @@ bool SleepdShutdownCategory::init()
     } catch (LS::Error &lunaError) {
         PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register sleepdsupport shutdown category");
         return false;
+    }
+
+    if (isPowerdUp) {
+        try {
+            mRefPowerdLsHandle.registerCategory("/shutdown",
+                                                LS_CATEGORY_TABLE_NAME(shutdownAPI), shutdownSignals, nullptr);
+            mRefPowerdLsHandle.setCategoryData("/shutdown", this);
+            PMSLOG_INFO(MSGID_SHUTDOWN_DEBUG, 0, "%s, %s, powerd shutdown category registration is success**", __FILE__,
+                        __FUNCTION__);
+        } catch (LS::Error &lunaError) {
+            PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register powerd shutdown category");
+        }
     }
 
     return true;

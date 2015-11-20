@@ -29,7 +29,11 @@ LSHandle *gHandle = nullptr;
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
 LSHandle *gSleepdLsHandle = nullptr;
 LSHandle *gDisplayLsHandle = nullptr;
+LSHandle *gPowerdLsHandle = nullptr;
+
 bool gSuspendedState = false;
+const std::string powerdServiceUri = "com.palm.power";
+
 #endif
 
 static const std::string uriAlarmClear("palm://com.webos.service.alarm/clear");
@@ -94,6 +98,16 @@ bool PowerManagerService::init()
 {
     mShutdownCategoryHandle = new ShutdownCategoryMethods(*this);
     mWakelocksMgr = new WakelockClientsMgrImpl();
+
+    try {
+        mPowerdHandle = LS::registerService(powerdServiceUri.c_str());
+        gPowerdLsHandle = mPowerdHandle.get();
+        mIsPowerdRegistered = true;
+        PMSLOG_INFO(MSGID_SHUTDOWN_DEBUG, 0, "%s, %s, powerd registration is success**", __FILE__, __FUNCTION__);
+    } catch (LS::Error &lunaError) {
+        mIsPowerdRegistered = false;
+        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register powerd ");
+    }
 
     if (!mShutdownCategoryHandle || !mShutdownCategoryHandle->init() || !mWakelocksMgr) {
         PMSLOG_ERROR(MSGID_MEM_ALLOC_FAIL, 0, "memory allocation error");
@@ -645,6 +659,7 @@ bool PowerManagerService::clientSubscriptionCancel(LSHandle *sh, LSMessage *msg,
     PowerManagerService *ptrHandle = static_cast<PowerManagerService *>(ctx);
     std::string clientId = LSMessageGetUniqueToken(msg);
     ptrHandle->deregisterClient(clientId);
+    cancelSubscription(sh, msg, ctx);
     return true;
 }
 
@@ -663,6 +678,11 @@ ShutdownCategoryMethods &PowerManagerService::getShutdownCategoryHandle()
 LS::Handle &PowerManagerService::getSleepdLsHandle()
 {
     return mSleepdHandle;
+}
+
+LS::Handle &PowerManagerService::getPowerdLsHandle()
+{
+    return mPowerdHandle;
 }
 
 LS::Handle &PowerManagerService::getDisplayLsHandle()

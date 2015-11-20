@@ -18,17 +18,19 @@
 class SleepdTimeoutCategory
 {
     public:
-        SleepdTimeoutCategory(LS::Handle &refSleepdLsHandle);
+        SleepdTimeoutCategory(LS::Handle &refSleepdLsHandle, LS::Handle &refPowerdLsHandle);
         ~SleepdTimeoutCategory() = default;
-        bool init();
+        bool init(bool isPowerdUp);
 
         bool set(LSMessage &message);
         bool clear(LSMessage &message);
-
+        static bool set(LSHandle *sh, LSMessage *message, void *ctx);
+        static bool clear(LSHandle *sh, LSMessage *message, void *ctx);
         static bool alarmsTimeoutCb(LSHandle *sh, LSMessage *message, void *ctx);
 
     private:
         LS::Handle &mRefSleepdLsHandle;
+        LS::Handle &mRefPowerdLsHandle;
 };
 
 #endif /* GIT_SRC_SLEEPD_SLEEPDTIMEOUTCATEGORY_H_ */

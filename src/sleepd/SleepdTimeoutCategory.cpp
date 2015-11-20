@@ -14,16 +14,26 @@
 #include "PmsLuna2Utils.h"
 #include "PmsLogging.h"
 
-SleepdTimeoutCategory::SleepdTimeoutCategory(LS::Handle &refSleepdLsHandle) : mRefSleepdLsHandle(refSleepdLsHandle)
-{
-}
+LSHandle *gPowerdHandle1 = nullptr;
 
-bool SleepdTimeoutCategory::init()
+SleepdTimeoutCategory::SleepdTimeoutCategory(LS::Handle &refSleepdLsHandle, LS::Handle &refPowerdLsHandle) :
+    mRefSleepdLsHandle(refSleepdLsHandle),
+    mRefPowerdLsHandle(refPowerdLsHandle)
+{}
+
+bool SleepdTimeoutCategory::init(bool isPowerdUp)
 {
     LS_CREATE_CATEGORY_BEGIN(SleepdTimeoutCategory, timeoutAPI)
     LS_CATEGORY_METHOD(set)
     LS_CATEGORY_METHOD(clear)
     LS_CREATE_CATEGORY_END
+
+    static LSMethod powerdMethods[] = {
+        { "set", SleepdTimeoutCategory::set },
+        { "clear", SleepdTimeoutCategory::clear },
+        { 0, 0 }
+    };
+
 
     try {
         mRefSleepdLsHandle.registerCategoryAppend("/timeout", const_cast<LSMethod *>(LS_CATEGORY_TABLE_NAME(timeoutAPI)),
@@ -34,6 +44,19 @@ bool SleepdTimeoutCategory::init()
     } catch (LS::Error &lunaError) {
         PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register sleepdsupport /timeout category");
         return false;
+    }
+
+    if (isPowerdUp) {
+        bool bRetVal;
+        LSError lSError;
+        LSErrorInit(&lSError);
+        bRetVal = LSRegisterCategoryAppend(mRefPowerdLsHandle.get(), "/timeout", powerdMethods, NULL, &lSError);
+        gPowerdHandle1 = mRefPowerdLsHandle.get();
+
+        if (!bRetVal || !LSCategorySetData(mRefPowerdLsHandle.get(), "/timeout", this, &lSError)) {
+            PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "powerd timeout registration failed");
+            LSErrorFree(&lSError);
+        }
     }
 
     return true;
@@ -47,6 +70,14 @@ bool SleepdTimeoutCategory::set(LSMessage &message)
     return true;
 }
 
+bool SleepdTimeoutCategory::set(LSHandle *sh, LSMessage *message, void *ctx)
+{
+    LSMessageRef(message);
+    LSCallOneReply(gPowerdHandle1, "palm://com.webos.service.alarm/set",
+                   LSMessageGetPayload(message), alarmsTimeoutCb, static_cast<void *>(message), nullptr, nullptr);
+    return true;
+}
+
 bool SleepdTimeoutCategory::clear(LSMessage &message)
 {
     LSMessageRef(&message);
@@ -54,6 +85,15 @@ bool SleepdTimeoutCategory::clear(LSMessage &message)
                    LSMessageGetPayload(&message), alarmsTimeoutCb, static_cast<void *>(&message), nullptr, nullptr);
     return true;
 }
+
+bool SleepdTimeoutCategory::clear(LSHandle *sh, LSMessage *message, void *ctx)
+{
+    LSMessageRef(message);
+    LSCallOneReply(gPowerdHandle1, "palm://com.webos.service.alarm/clear",
+                   LSMessageGetPayload(message), alarmsTimeoutCb, static_cast<void *>(message), nullptr, nullptr);
+    return true;
+}
+
 
 bool SleepdTimeoutCategory::alarmsTimeoutCb(LSHandle *sh, LSMessage *message, void *ctx)
 {

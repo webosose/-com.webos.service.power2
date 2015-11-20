@@ -20,9 +20,9 @@ class ShutdownCategoryMethods;
 class SleepdShutdownCategory
 {
     public:
-        SleepdShutdownCategory(ShutdownCategoryMethods &pmsRef, LS::Handle &refLsHandle);
+        SleepdShutdownCategory(ShutdownCategoryMethods &pmsRef, LS::Handle &refLsHandle, LS::Handle &refPowerdLsHandle);
         ~SleepdShutdownCategory() = default;
-        bool init();
+        bool init(bool isPowerdUp);
 
         SleepdShutdownCategory(const SleepdShutdownCategory &) = delete;
         SleepdShutdownCategory &operator=(const SleepdShutdownCategory &) = delete;
@@ -38,6 +38,7 @@ class SleepdShutdownCategory
     private:
         ShutdownCategoryMethods &mRefShutdownCategoryMethods;
         LS::Handle          &mRefLsHandle;
+        LS::Handle          &mRefPowerdLsHandle;
 };
 
 #endif /* GIT_SRC_SLEEPD_SLEEPDSHUTDOWNCATEGORY_H_ */

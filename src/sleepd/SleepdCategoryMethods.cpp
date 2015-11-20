@@ -19,9 +19,11 @@
 #include "ShutdownCategoryMethods.h"
 #include "PmsLogging.h"
 
-SleepdCategoryMethods::SleepdCategoryMethods(PowerManagerService &pmsRef, LS::Handle &sleepdLsHandle) :
+SleepdCategoryMethods::SleepdCategoryMethods(PowerManagerService &pmsRef, LS::Handle &sleepdLsHandle,
+        LS::Handle &powerdLsHandle) :
     mRefPowerManagerService(pmsRef),
-    mRefSleepdLsHandle(sleepdLsHandle)
+    mRefSleepdLsHandle(sleepdLsHandle),
+    mRefPowerdLsHandle(powerdLsHandle)
 {
 }
 
@@ -35,17 +37,20 @@ SleepdCategoryMethods::~SleepdCategoryMethods()
 
 bool SleepdCategoryMethods::init()
 {
-    mPtrSleepdTimeoutCategory = new SleepdTimeoutCategory(mRefSleepdLsHandle);
-    mPtrSleepdTimeCategory = new SleepdTimeCategory();
+    mPtrSleepdTimeoutCategory = new SleepdTimeoutCategory(mRefSleepdLsHandle, mRefPowerdLsHandle);
+    mPtrSleepdTimeCategory = new SleepdTimeCategory(mRefPowerdLsHandle);
     mPtrSleepdShutdownCategory = new SleepdShutdownCategory(mRefPowerManagerService.getShutdownCategoryHandle(),
-            mRefSleepdLsHandle);
-    mPtrSleepdPowerCategory = new SleepdPowerCategory(mRefPowerManagerService, mRefSleepdLsHandle);
+            mRefSleepdLsHandle, mRefPowerdLsHandle);
+    mPtrSleepdPowerCategory = new SleepdPowerCategory(mRefPowerManagerService, mRefSleepdLsHandle, mRefPowerdLsHandle);
 
     if (!(mPtrSleepdTimeCategory && mPtrSleepdTimeoutCategory && mPtrSleepdShutdownCategory && mPtrSleepdPowerCategory)) {
         return false;
     }
 
-    if (!(mPtrSleepdShutdownCategory->init() && mPtrSleepdPowerCategory->init() && mPtrSleepdTimeoutCategory->init())) {
+    if (!(mPtrSleepdShutdownCategory->init(mRefPowerManagerService.getIsPowerdRegistered()) &&
+          mPtrSleepdPowerCategory->init(mRefPowerManagerService.getIsPowerdRegistered())
+          && mPtrSleepdTimeoutCategory->init(mRefPowerManagerService.getIsPowerdRegistered()) &&
+          mPtrSleepdTimeCategory->init(mRefPowerManagerService.getIsPowerdRegistered()))) {
         return false;
     }
 

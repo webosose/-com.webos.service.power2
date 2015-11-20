@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     }
 
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
-    std::unique_ptr<SleepdCategoryMethods> sleepdMethods(new SleepdCategoryMethods(*pmService, pmService->getSleepdLsHandle()));
+    std::unique_ptr<SleepdCategoryMethods> sleepdMethods(new SleepdCategoryMethods(*pmService, pmService->getSleepdLsHandle(), pmService->getPowerdLsHandle()));
 
     if (!(sleepdMethods && sleepdMethods->init())) {
         PMSLOG_DEBUG("Unable to create SleepdCategoryMethods instance/initialize it");
@@ -72,6 +72,9 @@ int main(int argc, char *argv[])
 
     pmService->getSleepdLsHandle().attachToLoop(mainLoop);
     pmService->getDisplayLsHandle().attachToLoop(mainLoop);
+
+    if (pmService->getIsPowerdRegistered())
+        pmService->getPowerdLsHandle().attachToLoop(mainLoop);
 #endif
     pmService->attachToLoop(mainLoop);
 

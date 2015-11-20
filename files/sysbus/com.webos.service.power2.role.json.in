@@ -1,7 +1,7 @@
 {
        "exeName":"@WEBOS_INSTALL_SBINDIR@/powermgr",
        "type": "regular",
-       "allowedNames": ["com.webos.service.power2", "com.palm.sleep", "com.palm.display"],
+       "allowedNames": ["com.webos.service.power2", "com.palm.sleep", "com.palm.display", "com.palm.power"],
        "permissions": [
            {
                "service":"com.webos.service.power2",
@@ -13,6 +13,20 @@
                            "com.webos.sensord",
                            "com.palm.lunabus",
                            "com.webos.keys",
+                           "com.webos.service.battery",
+                           "com.webos.service.alarm"]
+           },
+           {
+               "service":"com.palm.power",
+               "inbound":["*"],
+               "outbound":["com.webos.service.telephony",
+                           "com.webos.settingsservice",
+                           "com.palm.messagingrouter",
+                           "com.lge.service.knockcode",
+                           "com.webos.sensord",
+                           "com.palm.lunabus",
+                           "com.webos.keys",
+                           "com.webos.service.battery",
                            "com.webos.service.alarm"]
            },
            {
@@ -25,6 +39,7 @@
                            "com.webos.sensord",
                            "com.palm.lunabus",
                            "com.webos.keys",
+                           "com.webos.service.battery",
                            "com.webos.service.alarm"]
            },
            {
@@ -37,8 +52,9 @@
                            "com.webos.sensord",
                            "com.palm.lunabus",
                            "com.webos.keys",
+                           "com.webos.service.battery",
                            "com.webos.service.alarm"]
            }
        ]
-   }
+}
 
