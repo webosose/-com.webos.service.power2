@@ -107,6 +107,7 @@ void SleepdPowerCategory::registerPowerdMethods(LS::Handle &powerdLsHandle)
     LS_CATEGORY_METHOD(setFakeBatteryMode)
     LS_CATEGORY_METHOD(suspendRequestRegister)
     LS_CATEGORY_METHOD(prepareSuspendRegister)
+    LS_CATEGORY_METHOD(prepareSuspendAck)
     LS_CATEGORY_METHOD(suspendRequestAck)
     LS_CATEGORY_METHOD(batterySaverOnOff)
     LS_CATEGORY_METHOD(identify)
@@ -560,7 +561,7 @@ bool SleepdPowerCategory::suspendRequestRegister(LSMessage &message)
 
 
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
-        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "identify schema validation failed");
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "suspendRequestRegister schema validation failed");
         LSUtils::respondWithError(request, errorParseFailed, 0);
         return true;
     }
@@ -579,7 +580,7 @@ bool SleepdPowerCategory::prepareSuspendRegister(LSMessage &message)
 
 
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
-        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "identify schema validation failed");
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "prepareSuspendRegister schema validation failed");
         LSUtils::respondWithError(request, errorParseFailed, 0);
         return true;
     }
@@ -598,7 +599,26 @@ bool SleepdPowerCategory::suspendRequestAck(LSMessage &message)
 
 
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
-        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "identify schema validation failed");
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "suspendRequestAck schema validation failed");
+        LSUtils::respondWithError(request, errorParseFailed, 0);
+        return true;
+    }
+
+    responseObj.put("returnValue", true);
+    LSUtils::postToClient(request, responseObj);
+    return true;
+}
+
+bool SleepdPowerCategory::prepareSuspendAck(LSMessage &message)
+{
+    LS::Message request(&message);
+    pbnjson::JValue responseObj = pbnjson::Object();
+    pbnjson::JValue requestObj;
+    int parseError = 0;
+
+
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "prepareSuspendAck schema validation failed");
         LSUtils::respondWithError(request, errorParseFailed, 0);
         return true;
     }

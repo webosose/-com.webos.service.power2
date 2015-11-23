@@ -27,6 +27,7 @@
                            "com.palm.lunabus",
                            "com.webos.keys",
                            "com.webos.service.battery",
+                           "com.webos.service.power2",
                            "com.webos.service.alarm"]
            },
            {
@@ -40,6 +41,7 @@
                            "com.palm.lunabus",
                            "com.webos.keys",
                            "com.webos.service.battery",
+                           "com.webos.service.power2",
                            "com.webos.service.alarm"]
            },
            {
@@ -53,6 +55,7 @@
                            "com.palm.lunabus",
                            "com.webos.keys",
                            "com.webos.service.battery",
+                           "com.webos.service.power2",
                            "com.webos.service.alarm"]
            }
        ]

@@ -48,6 +48,7 @@ class SleepdPowerCategory
         bool suspendRequestRegister(LSMessage &message);
         bool prepareSuspendRegister(LSMessage &message);
         bool suspendRequestAck(LSMessage &message);
+        bool prepareSuspendAck(LSMessage &message);
         bool batterySaverOnOff(LSMessage &message);
 
     private:
