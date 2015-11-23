@@ -1,0 +1,102 @@
+#!/bin/sh
+
+###################################
+########## KitKat Kernel ##########
+###################################
+##### CPU 0
+if [ -e "/sys/module/msm_pm/modes/cpu0" ] ; then
+echo 1 > /sys/module/msm_pm/modes/cpu0/wfi/idle_enabled
+echo 0 > /sys/module/msm_pm/modes/cpu0/retention/idle_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu0/standalone_power_collapse/idle_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu0/power_collapse/idle_enabled
+
+echo 1 > /sys/module/msm_pm/modes/cpu0/wfi/suspend_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu0/standalone_power_collapse/suspend_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu0/power_collapse/suspend_enabled
+fi
+
+##### CPU 1
+if [ -e "/sys/module/msm_pm/modes/cpu1" ] ; then
+echo 1 > /sys/module/msm_pm/modes/cpu1/wfi/idle_enabled
+echo 0 > /sys/module/msm_pm/modes/cpu1/retention/idle_enabled
+echo 0 > /sys/module/msm_pm/modes/cpu1/power_collapse/idle_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu1/standalone_power_collapse/idle_enabled
+
+echo 0 > /sys/module/msm_pm/modes/cpu1/retention/suspend_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu1/standalone_power_collapse/suspend_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu1/power_collapse/suspend_enabled
+fi
+
+##### CPU 2
+if [ -e "/sys/module/msm_pm/modes/cpu2" ] ; then
+echo 1 > /sys/module/msm_pm/modes/cpu2/wfi/idle_enabled
+echo 0 > /sys/module/msm_pm/modes/cpu2/retention/idle_enabled
+echo 0 > /sys/module/msm_pm/modes/cpu2/power_collapse/idle_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu2/standalone_power_collapse/idle_enabled
+
+echo 0 > /sys/module/msm_pm/modes/cpu2/retention/suspend_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu2/standalone_power_collapse/suspend_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu2/power_collapse/suspend_enabled
+fi
+
+##### CPU 3
+if [ -e "/sys/module/msm_pm/modes/cpu3" ] ; then
+echo 1 > /sys/module/msm_pm/modes/cpu3/wfi/idle_enabled
+echo 0 > /sys/module/msm_pm/modes/cpu3/retention/idle_enabled
+echo 0 > /sys/module/msm_pm/modes/cpu3/power_collapse/idle_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu3/standalone_power_collapse/idle_enabled
+
+echo 0 > /sys/module/msm_pm/modes/cpu3/retention/suspend_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu3/standalone_power_collapse/suspend_enabled
+echo 1 > /sys/module/msm_pm/modes/cpu3/power_collapse/suspend_enabled
+fi
+
+#####################################
+########## Previous Kernel ##########
+#####################################
+##### CPU 0
+if [ -e "/sys/module/pm_8x60/modes/cpu0" ] ; then
+echo 1 > /sys/module/pm_8x60/modes/cpu0/standalone_power_collapse/suspend_enabled
+echo 1 > /sys/module/pm_8x60/modes/cpu0/standalone_power_collapse/idle_enabled
+echo 1 > /sys/module/pm_8x60/modes/cpu0/power_collapse/idle_enabled
+echo 1 > /sys/module/pm_8x60/modes/cpu0/power_collapse/suspend_enabled
+fi
+
+##### CPU 1
+if [ -e "/sys/module/pm_8x60/modes/cpu1" ] ; then
+echo 1 > /sys/module/pm_8x60/modes/cpu1/standalone_power_collapse/idle_enabled
+echo 1 > /sys/module/pm_8x60/modes/cpu1/standalone_power_collapse/suspend_enabled
+echo 1 > /sys/module/pm_8x60/modes/cpu1/power_collapse/suspend_enabled
+fi
+
+##### CPU 2
+if [ -e "/sys/module/pm_8x60/modes/cpu2" ] ; then
+echo 1 > /sys/module/pm_8x60/modes/cpu2/standalone_power_collapse/idle_enabled
+echo 1 > /sys/module/pm_8x60/modes/cpu2/standalone_power_collapse/suspend_enabled
+echo 1 > /sys/module/pm_8x60/modes/cpu2/power_collapse/suspend_enabled
+fi
+
+##### CPU 3
+if [ -e "/sys/module/pm_8x60/modes/cpu3" ] ; then
+echo 1 > /sys/module/pm_8x60/modes/cpu3/standalone_power_collapse/idle_enabled
+echo 1 > /sys/module/pm_8x60/modes/cpu3/standalone_power_collapse/suspend_enabled
+echo 1 > /sys/module/pm_8x60/modes/cpu3/power_collapse/suspend_enabled
+fi
+
+#############################################
+########## Low Power Mode Settings ##########
+#############################################
+
+# For WD (MSM8926)
+if [ -e "/sys/module/lpm_levels/enable_low_power/l2" ] ; then
+echo 4 > /sys/module/lpm_levels/enable_low_power/l2
+fi
+
+# For G2 (MSM8974)
+if [ -e "/sys/module/lpm_resources/enable_low_power" ] ; then
+echo 2 > /sys/module/lpm_resources/enable_low_power/l2
+echo 1 > /sys/module/lpm_resources/enable_low_power/pxo
+echo 1 > /sys/module/lpm_resources/enable_low_power/vdd_dig
+echo 1 > /sys/module/lpm_resources/enable_low_power/vdd_mem
+fi
+

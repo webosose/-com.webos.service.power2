@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# OYK_2013_11_05 : cpufreq governor setting script
+# cpufreq governor
+
+echo hotplug > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 

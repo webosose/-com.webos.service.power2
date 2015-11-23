@@ -14,4 +14,10 @@ respawn
 # Comment this line out to suppress logs on the console
 #console output
 
+pre-start script
+@WEBOS_INSTALL_SBINDIR@/msm_suspend
+@WEBOS_INSTALL_SBINDIR@/set_cpufreq_ondemand_governor
+@WEBOS_INSTALL_SBINDIR@/cpufreq_governor_parameters
+end script
+
 exec @WEBOS_INSTALL_SBINDIR@/powermgr

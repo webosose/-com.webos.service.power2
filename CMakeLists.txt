@@ -89,7 +89,22 @@ install(TARGETS ${CMAKE_PROJECT_NAME}
         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
                     GROUP_READ GROUP_EXECUTE)
 
+
+install(PROGRAMS scripts/public/suspend_action DESTINATION ${WEBOS_INSTALL_SBINDIR})
 webos_build_configured_file(files/conf/pmlog/powermgr.conf SYSCONFDIR pmlog.d)
+
+# OYK_2013_07_09 : Add MSM suspend settings
+install(PROGRAMS scripts/public/msm_suspend DESTINATION ${WEBOS_INSTALL_SBINDIR})
+# OYK_2013_08_12 : Add cpufreq governor settings
+install(PROGRAMS scripts/public/set_cpufreq_ondemand_governor DESTINATION ${WEBOS_INSTALL_SBINDIR})
+# OYK_2013_08_28 : Add alarm.xml
+install(PROGRAMS scripts/public/alarms.xml DESTINATION ${WEBOS_INSTALL_LOCALSTATEDIR})
+# OYK_2014_02_25 : Add cpufreq governor parameters
+install(PROGRAMS scripts/public/cpufreq_governor_parameters DESTINATION ${WEBOS_INSTALL_SBINDIR})
+install(PROGRAMS scripts/public/set_cpu_online DESTINATION ${WEBOS_INSTALL_SBINDIR})
+install(PROGRAMS scripts/public/set_cpu_offline DESTINATION ${WEBOS_INSTALL_SBINDIR})
+install(PROGRAMS scripts/public/update_timestamp DESTINATION ${WEBOS_INSTALL_SBINDIR})
+
 webos_build_daemon()
 webos_build_system_bus_files()
 
