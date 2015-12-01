@@ -5,6 +5,7 @@
        "permissions": [
            {
                "service":"com.webos.service.power2",
+               "inbound":["*"],
                "outbound":["com.webos.service.telephony",
                            "com.webos.settingsservice",
                            "com.palm.messagingrouter",
@@ -17,6 +18,7 @@
            },
            {
                "service":"com.palm.power",
+               "inbound":["*"],
                "outbound":["com.webos.service.telephony",
                            "com.webos.settingsservice",
                            "com.palm.messagingrouter",
@@ -30,6 +32,7 @@
            },
            {
                "service":"com.palm.sleep",
+               "inbound":["*"],
                "outbound":["com.webos.service.telephony",
                            "com.webos.settingsservice",
                            "com.palm.messagingrouter",
@@ -43,6 +46,7 @@
            },
            {
                "service":"com.palm.display",
+               "inbound":["*"],
                "outbound":["com.webos.service.telephony",
                            "com.webos.settingsservice",
                            "com.palm.messagingrouter",
