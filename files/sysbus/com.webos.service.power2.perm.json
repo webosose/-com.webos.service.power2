@@ -1,0 +1,11 @@
+{
+    "com.webos.service.power2": [
+      "knockcode",
+      "telephony",
+      "settings",
+      "messagingrouter",
+      "sensors.query",
+      "applications.internal",
+      "system"
+    ]
+}

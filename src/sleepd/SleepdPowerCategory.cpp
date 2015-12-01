@@ -161,6 +161,14 @@ bool SleepdPowerCategory::_batterydServiceStatusCb(LSHandle *sh, const char *ser
         LSErrorInit(&lserror);
 
         bool result = false;
+        result = LSCallOneReply(gPowerdHandle, "palm://com.webos.service.battery/getChargerStatus", "{}",
+                                SleepdPowerCategory::chargerStatusQuerySignal, this, NULL, &lserror);
+
+        if (!result) {
+            LSErrorPrint(&lserror, stderr);
+            LSErrorFree(&lserror);
+        }
+
         result = LSCall(gPowerdHandle, URI_SIGNAL_ADDMATCH, JSON_BATTERY_STATUS_SIGNAL,
                         SleepdPowerCategory::batteryStatusQuerySignal, this, NULL, &lserror);
 

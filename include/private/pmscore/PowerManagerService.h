@@ -39,6 +39,7 @@ class PowerManagerService: public LS::Handle
         void addSubscription(LSMessage &message);
         void setSubscriptionCancelCallback();
         static bool clientSubscriptionCancel(LSHandle *sh, LSMessage *msg, void *ctx);
+        static bool setSystemTimeCallback(LSHandle *sh, LSMessage *message, void *ctx);
         ShutdownCategoryMethods &getShutdownCategoryHandle();
 
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
@@ -73,6 +74,8 @@ class PowerManagerService: public LS::Handle
 
     private:
         bool initPmSupportInterface();
+        bool configInit(void);
+        bool checkSystemClock(void);
         bool exit(LSMessage &message);
         bool setAlarm(const std::string &key, int timeout);
         void deregisterClient(const std::string &clientId);
@@ -82,6 +85,7 @@ class PowerManagerService: public LS::Handle
         pms_support_update_callbacks mSupportCallback;
         ShutdownCategoryMethods *mShutdownCategoryHandle = nullptr;
         WakelockClientsMgr *mWakelocksMgr = nullptr;
+        long mDifferenceBetweenRtcAndSystemClock = 0;
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
         bool mActivityStart = false;
         bool mIsPowerdRegistered = false;

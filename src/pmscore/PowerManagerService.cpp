@@ -13,6 +13,7 @@
 #include <string>       // std::string
 #include <sstream>      // std::stringstream
 #include <cstdio>
+#include <nyx/nyx_client.h>
 
 #include "PmsLuna2Utils.h"
 #include "PmsLogging.h"
@@ -24,7 +25,7 @@
 void sendSuspendSignal(int type);
 void sendResumeSignal(int resumeType);
 LSHandle *gHandle = nullptr;
-
+const std::string gSleepdPreferenceDir = "/var/preferences/com.webos.service.alarm";
 
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
 LSHandle *gSleepdLsHandle = nullptr;
@@ -44,6 +45,43 @@ enum PowerManagerServiceConsts {
     MAX_TIME_FORMAT_SIZE = 9,
     MAX_PARAMS_SIZE = 100
 };
+
+#define CONFIG_GET_LONG(keyfile,cat,name,var)                   \
+do {                                                            \
+    int intVal;                                                 \
+    GError *gerror = NULL;                                      \
+    intVal = g_key_file_get_int64(keyfile,cat,name,&gerror);    \
+    if (!gerror) {                                              \
+        var = intVal;                                           \
+    }                                                           \
+    else { g_error_free(gerror); }                              \
+} while (0)
+
+bool PowerManagerService::configInit(void)
+{
+    GKeyFile *config_file = g_key_file_new();
+    char *config_path;
+    bool retVal;
+
+    if (config_file)
+    {
+        char config_file_path[128];
+
+        strcpy( config_file_path , gSleepdPreferenceDir.c_str() );
+        strcat( config_file_path , "/systemclock.conf" );
+
+        config_path = g_build_filename(config_file_path , NULL);
+        retVal = g_key_file_load_from_file(config_file, config_path, G_KEY_FILE_NONE, NULL);
+        if (retVal)
+        {
+            CONFIG_GET_LONG(config_file, "systemclock", "difference_between_rtc_and_system_clock", mDifferenceBetweenRtcAndSystemClock);
+        }
+        g_free(config_path);
+        g_key_file_free(config_file);
+        return true;
+    }
+    return false;
+}
 
 PowerManagerService::PowerManagerService(GMainLoop *mainLoop) : LS::Handle(LS::registerService(serviceUri.c_str())),
     mLoopdata(mainLoop)
@@ -118,6 +156,11 @@ bool PowerManagerService::init()
 
     if (!initPmSupportInterface()) {
         return false;
+    }
+
+    if(configInit() && checkSystemClock())
+    {
+        PMSLOG_DEBUG("checkSystemClockDone");
     }
 
     return true;
@@ -721,4 +764,75 @@ bool PowerManagerService::isClientRegistered(const std::string &clientId)
     return mWakelocksMgr->isClientExist(clientId);
 }
 #endif
+
+bool PowerManagerService::checkSystemClock(void)
+{
+    time_t rtc_time_now = 0;
+    time_t wall_time_now = 0;
+    time_t backup_system_clock = 0;
+    struct tm tm_time;
+
+    LSError lserror;
+    char payload[128];
+    nyx_device_handle_t nyxSystem = NULL;
+
+    if (mDifferenceBetweenRtcAndSystemClock == 0 ) {
+        return true;
+    }
+
+    if (nyx_device_open(NYX_DEVICE_SYSTEM, "Main", &nyxSystem) != NYX_ERROR_NONE) {
+        PMSLOG_DEBUG("[PMS] %s( ... ) , [[[ ERROR ]]] nyx_device_open(NYX_DEVICE_SYSTEM, ...) FAILED !!" , __FUNCTION__);
+        return false;
+    }
+
+    // If query for rtc time is failed, try to query rtc time several times.
+    if (nyx_system_query_rtc_time(nyxSystem, &rtc_time_now) != NYX_ERROR_NONE) {
+        PMSLOG_DEBUG("nyx_system_query_rtc_time in %s", __FUNCTION__);
+        return false;
+    }
+
+    time(&wall_time_now);
+
+    backup_system_clock = mDifferenceBetweenRtcAndSystemClock + rtc_time_now;
+
+    PMSLOG_DEBUG("[PMS] %s( ... ) , wall_time_now = %ld , rtc_time_now ( %ld ) + difference ( %ld ) = backup_system_clock ( %ld )" , __FUNCTION__ , wall_time_now , rtc_time_now , mDifferenceBetweenRtcAndSystemClock , backup_system_clock);
+    gmtime_r(&mDifferenceBetweenRtcAndSystemClock, &tm_time);
+    PMSLOG_DEBUG("[PMS] %s( ... ) , Difference Time = [ %04d/%02d/%02d , %02d:%02d:%02d ]" , __FUNCTION__ , tm_time.tm_year , tm_time.tm_mon , tm_time.tm_mday , tm_time.tm_hour , tm_time.tm_min , tm_time.tm_sec);
+    gmtime_r(&rtc_time_now, &tm_time);
+    PMSLOG_DEBUG("[PMS] %s( ... ) , Current RTC Time    = [ %04d/%02d/%02d , %02d:%02d:%02d ]\n" , __FUNCTION__ , tm_time.tm_year+1900 , tm_time.tm_mon+1 , tm_time.tm_mday , tm_time.tm_hour , tm_time.tm_min , tm_time.tm_sec);
+    gmtime_r(&wall_time_now, &tm_time);
+    PMSLOG_DEBUG("[PMS] %s( ... ) , Current System Time = [ %04d/%02d/%02d , %02d:%02d:%02d ]\n" , __FUNCTION__ , tm_time.tm_year+1900 , tm_time.tm_mon+1 , tm_time.tm_mday , tm_time.tm_hour , tm_time.tm_min , tm_time.tm_sec);
+    gmtime_r(&backup_system_clock, &tm_time);
+    PMSLOG_DEBUG("[PMS] %s( ... ) , Backup System Time  = [ %04d/%02d/%02d , %02d:%02d:%02d ]\n\n" , __FUNCTION__ , tm_time.tm_year+1900 , tm_time.tm_mon+1 , tm_time.tm_mday , tm_time.tm_hour , tm_time.tm_min , tm_time.tm_sec);
+
+    if ( wall_time_now != backup_system_clock ) {
+        LSErrorInit(&lserror);
+        sprintf( payload , "{\"useNetworkTime\":false}" );
+        LSCall(gHandle, "luna://com.palm.systemservice/setPreferences", payload, setSystemTimeCallback, NULL, NULL, &lserror);
+
+        if (LSErrorIsSet(&lserror))
+        {
+            LSErrorFree(&lserror);
+        }
+
+        // Change system time
+        LSErrorInit(&lserror);
+        sprintf( payload , "{\"utc\": %ld }" , backup_system_clock );
+        LSCall(gHandle, "luna://com.palm.systemservice/time/setSystemTime", payload, setSystemTimeCallback, NULL, NULL, &lserror);
+
+        if (LSErrorIsSet(&lserror))
+        {
+            LSErrorFree(&lserror);
+        }
+    }
+
+    nyx_device_close(nyxSystem);
+    return true;
+}
+
+bool PowerManagerService::setSystemTimeCallback(LSHandle *sh, LSMessage *message, void *ctx)
+{
+    PMSLOG_DEBUG("%s", __FUNCTION__);
+    return true;
+}
 

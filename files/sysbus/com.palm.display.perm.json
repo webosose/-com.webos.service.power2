@@ -1,0 +1,11 @@
+{
+    "com.palm.display": [
+      "knockcode",
+      "telephony",
+      "settings",
+      "messagingrouter",
+      "sensors.query",
+      "applications.internal",
+      "system"
+    ]
+}

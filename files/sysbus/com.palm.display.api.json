@@ -1,0 +1,11 @@
+{
+    "services": [
+    "com.palm.display/dimModeEnable",
+    "com.palm.display/status",
+    "com.palm.display/control/dimModeEnable",
+    "com.palm.display/control/getProperty",
+    "com.palm.display/control/setProperty",
+    "com.palm.display/control/setState",
+    "com.palm.display/control/status"
+  ]
+}
