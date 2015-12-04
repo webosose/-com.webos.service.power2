@@ -353,21 +353,15 @@ bool PowerManagerService::setAwake(int timeout, LS::Message &request, std::strin
         return false;
     }
 
-    if(timeout > 0 ) {
-        //set the alarm. clientId will be used as key
-        if (setAlarm(clientId, timeout)) {
-            mWakelocksMgr->setWakelock(clientId, timeout);
-            //notify to library
-            pms_support_notify_wakeup(mWakelocksMgr->getWakelockCount());
-            PMSLOG_DEBUG("wakelock is set");
-        } else {
-            LSUtils::respondWithError(request, errorInternalError, 0);
-            return false;
-        }
-    } else {
-         mWakelocksMgr->setWakelock(clientId, timeout);
+    //set the alarm. clientId will be used as key
+    if (setAlarm(clientId, timeout)) {
+        mWakelocksMgr->setWakelock(clientId, timeout);
         //notify to library
         pms_support_notify_wakeup(mWakelocksMgr->getWakelockCount());
+        PMSLOG_DEBUG("wakelock is set");
+    } else {
+        LSUtils::respondWithError(request, errorInternalError, 0);
+        return false;
     }
     std::stringstream kernelWakelock;
     kernelWakelock << "echo " << sender << " 1000000000 > /sys/power/wake_lock";
