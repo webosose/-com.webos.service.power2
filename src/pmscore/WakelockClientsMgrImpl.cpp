@@ -11,6 +11,8 @@
 // LICENSE@@@
 
 #include "WakelockClientsMgrImpl.h"
+#include "PmsLogging.h"
+
 
 WakelockClientsMgrImpl::~WakelockClientsMgrImpl()
 {
@@ -91,6 +93,21 @@ void WakelockClientsMgrImpl::clearWakelock(const std::string &clientId)
     }
 }
 
+std::string WakelockClientsMgrImpl::getClientIdByName(const std::string &clientName)
+{
+    std::string clientId;
+
+    //get clientId if client exists
+    for (const auto &client : mClients) {
+        if (client.second.mName == clientName) {
+            clientId = client.first;
+            PMSLOG_DEBUG("@@@@@@ getClientIdByName clientName[%s]", clientId.c_str());
+            break;
+        }
+    }
+
+    return clientId;
+}
 void  WakelockClientsMgrImpl::updateClientRegistered(const std::string &clientId, bool isRegister)
 {
     const auto &it = mClients.find(clientId);

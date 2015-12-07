@@ -26,6 +26,7 @@ class WakelockClientsMgrImpl: public WakelockClientsMgr
         void addClient(const std::string &clientId, const std::string &clientName);
         void removeClient(const std::string &clientId);
         void removeClientByName(const std::string &clientName);
+        std::string getClientIdByName(const std::string &clientName);
         void setWakelock(const std::string &clienId, int timeout);
         void clearWakelock(const std::string &clientId);
         bool isClientExist(const std::string &clienId);
