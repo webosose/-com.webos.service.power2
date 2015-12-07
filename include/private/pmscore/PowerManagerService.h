@@ -78,7 +78,7 @@ class PowerManagerService: public LS::Handle
         bool checkSystemClock(void);
         bool exit(LSMessage &message);
         bool setAlarm(const std::string &key, int timeout);
-        void deregisterClient(const std::string &clientId);
+        void deregisterClient(LSMessage *msg, const std::string &clientId);
 
     private:
         GMainLoop *mLoopdata = nullptr;

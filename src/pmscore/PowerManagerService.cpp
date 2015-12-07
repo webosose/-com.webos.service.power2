@@ -353,15 +353,21 @@ bool PowerManagerService::setAwake(int timeout, LS::Message &request, std::strin
         return false;
     }
 
-    //set the alarm. clientId will be used as key
-    if (setAlarm(clientId, timeout)) {
-        mWakelocksMgr->setWakelock(clientId, timeout);
+    if(timeout > 0 ) {
+        //set the alarm. clientId will be used as key
+        if (setAlarm(clientId, timeout)) {
+            mWakelocksMgr->setWakelock(clientId, timeout);
+            //notify to library
+            pms_support_notify_wakeup(mWakelocksMgr->getWakelockCount());
+            PMSLOG_DEBUG("wakelock is set");
+        } else {
+            LSUtils::respondWithError(request, errorInternalError, 0);
+            return false;
+        }
+    } else {
+         mWakelocksMgr->setWakelock(clientId, timeout);
         //notify to library
         pms_support_notify_wakeup(mWakelocksMgr->getWakelockCount());
-        PMSLOG_DEBUG("wakelock is set");
-    } else {
-        LSUtils::respondWithError(request, errorInternalError, 0);
-        return false;
     }
     std::stringstream kernelWakelock;
     kernelWakelock << "echo " << sender << " 1000000000 > /sys/power/wake_lock";
@@ -561,6 +567,7 @@ bool PowerManagerService::notifyAlarmExpiry(LSMessage &message)
     pbnjson::JValue requestObj;
     int parseError = 0;
     const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(clientId, string))REQUIRED_1(clientId));
+    PMSLOG_DEBUG("notifyAlarmExpiry schema payload %s", request.getPayload());
 
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
         PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "notifyAlarmExpiry schema validation failed");
@@ -700,15 +707,18 @@ bool PowerManagerService::clientSubscriptionCancel(LSHandle *sh, LSMessage *msg,
     PMSLOG_DEBUG("subscription cancel function is called");
     PowerManagerService *ptrHandle = static_cast<PowerManagerService *>(ctx);
     std::string clientId = LSMessageGetUniqueToken(msg);
-    ptrHandle->deregisterClient(clientId);
+    PMSLOG_DEBUG("subscription cancel deregisterClient[%s]",LSMessageGetMethod(msg));
+    ptrHandle->deregisterClient(msg,clientId);
     cancelSubscription(sh, msg, ctx);
     return true;
 }
 
-void PowerManagerService::deregisterClient(const std::string &clientId)
+void PowerManagerService::deregisterClient(LSMessage *msg, const std::string &clientId)
 {
     mShutdownCategoryHandle->deregisterAppsServicesClient(clientId);
-    mWakelocksMgr->removeClient(clientId);
+
+    if(strcmp(LSMessageGetMethod(msg), "activityStart"))
+       mWakelocksMgr->removeClient(clientId);
 }
 
 ShutdownCategoryMethods &PowerManagerService::getShutdownCategoryHandle()

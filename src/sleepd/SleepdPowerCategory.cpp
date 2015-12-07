@@ -755,6 +755,7 @@ bool SleepdPowerCategory::activityStart(LSMessage &message)
 bool SleepdPowerCategory::activityEnd(LSMessage &message)
 {
 
+    PMSLOG_DEBUG("[activityEnd] begin ");
     LS::Message request(&message);
     pbnjson::JValue responseObj = pbnjson::Object();
     pbnjson::JValue requestObj;
@@ -769,24 +770,16 @@ bool SleepdPowerCategory::activityEnd(LSMessage &message)
 
     /********** clientId ***********/
     std::string clientName = requestObj["id"].asString();
-    std::string clientId = request.getUniqueToken();
 
     // if client doesn't exist return error
-    if (!mRefPms.getWakeLockManageRef()->isClientExist(clientId)) {
-        LSUtils::respondWithError(request, errorInvalidClient, 0);
-        return true;
-    }
 
-    // if wakelock is not set return error
-    if (!mRefPms.getWakeLockManageRef()->isWakelockSet(clientId)) {
-        std::string errorNoWakelock("wakelock is not set");
-        LSUtils::respondWithError(request, errorNoWakelock, 0);
-        return true;
-    }
 
+    std::string clientId = mRefPms.getWakeLockManageRef()->getClientIdByName(clientName);
+    PMSLOG_DEBUG("[activityEnd] clientId[%s] ClientName[%s] ", clientId.c_str(),clientName.c_str());
     // clear the alarm and clear the wakelock
     mRefPms.clearAlarm(clientId);
     mRefPms.getWakeLockManageRef()->clearWakelock(clientId);
+    mRefPms.getWakeLockManageRef()->removeClientByName(clientName);
     pms_support_notify_wakeup(mRefPms.getWakeLockManageRef()->getWakelockCount());
 
     responseObj.put("returnValue", true);
@@ -954,6 +947,7 @@ bool SleepdPowerCategory::setWakeLock(LSMessage &message)
         responseObj.put("returnValue", true);
         LSUtils::postToClient(request, responseObj);
     }
+    PMSLOG_DEBUG("wakelock count [%d]", mRefPms.getWakeLockManageRef()->getWakelockCount());
 
     return true;
 }
