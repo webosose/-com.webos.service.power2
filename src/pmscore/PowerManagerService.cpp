@@ -25,7 +25,7 @@
 void sendSuspendSignal(int type);
 void sendResumeSignal(int resumeType);
 LSHandle *gHandle = nullptr;
-const std::string gSleepdPreferenceDir = "/var/preferences/com.webos.service.alarm";
+const std::string gSleepdPreferenceDir = "/var/preferences/com.palm.sleep";
 
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
 LSHandle *gSleepdLsHandle = nullptr;
