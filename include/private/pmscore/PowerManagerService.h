@@ -69,13 +69,13 @@ class PowerManagerService: public LS::Handle
             return mIsPowerdRegistered;
         }
 #endif
+        bool checkSystemClock(void);
         bool setAwake(int timeout, LS::Message &request, std::string clientId, std::string sender, bool isTimeout = false);
         bool clearAlarm(const std::string &key);
 
     private:
         bool initPmSupportInterface();
         bool configInit(void);
-        bool checkSystemClock(void);
         bool exit(LSMessage &message);
         bool setAlarm(const std::string &key, int timeout);
         void deregisterClient(LSMessage *msg, const std::string &clientId);

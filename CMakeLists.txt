@@ -62,9 +62,12 @@ include_directories(include/private/shutdown)
 include_directories(include/private/util)
 include_directories(include/private/common)
 include_directories(include/private/sleepd)
+include_directories(include/public/powerd)
+include_directories(include/internal)
 
 add_definitions(-DSLEEPD_BACKWARD_COMPATIBILITY)
-
+add_definitions(-DENABLE_WAKELOCK_FOR_SLEEP_STATE)
+add_definitions(-DENABLE_POWEROFF_REBOOT_SIGNAL)
 file(GLOB SOURCE_FILES src/*/*.cpp)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g -Werror")
@@ -107,6 +110,8 @@ install(PROGRAMS scripts/public/update_timestamp DESTINATION ${WEBOS_INSTALL_SBI
 
 webos_build_daemon()
 webos_build_system_bus_files()
+
+add_subdirectory(libpowerd)
 
 #unit test for power manager service(powermgr)
 #for gtest framework
