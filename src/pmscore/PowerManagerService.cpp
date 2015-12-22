@@ -158,11 +158,12 @@ bool PowerManagerService::init()
         return false;
     }
 
+#ifdef POWERD_BACKWARD_COMPATIBILITY
     if(configInit() && checkSystemClock())
     {
         PMSLOG_DEBUG("checkSystemClockDone");
     }
-
+#endif
     return true;
 }
 

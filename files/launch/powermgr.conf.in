@@ -6,7 +6,7 @@
 
 description "@WEBOS_PROJECT_SUMMARY@"
 
-start on minimal-boot-done
+start on do-late
 stop on started start_update
 
 respawn
