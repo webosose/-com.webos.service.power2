@@ -31,7 +31,7 @@ inline void *operator new[](std::size_t size)
 #define SIGNAL_SHUTDOWNISINPROGRESS "shutdownIsInProgress"
 #define SIGNAL_SHUTDOWN_SERVICES "shutdownServices"
 #define SIGNAL_SHUTDOWN_APPLICATIONS "shutdownApplications"
-#define MIN_WAIT_TIME_FOR_SHUTDOWN 15
+#define MIN_WAIT_TIME_FOR_SHUTDOWN 5
 #define MAX_WAIT_TIME_FOR_SHUTDOWN 60
 #define SHUTDOWN_WAKE_LOCK "echo shutdown 65000000000 > /sys/power/wake_lock"
 
