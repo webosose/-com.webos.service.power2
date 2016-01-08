@@ -36,6 +36,7 @@ const std::string otpEventPath = "/sys/module/qpnp_charger/parameters/otp_event"
 #define JSON_CHARGER_CONNECT_SIGNAL "{\"category\":\"/\",\"method\":\"chargerConnected\"}"
 
 LSHandle *gPowerdHandle = nullptr;
+bool gIsChargerPresent = false;
 
 SleepdPowerCategory::SleepdPowerCategory(PowerManagerService &refHandle, LS::Handle &sleepdLsHandle,
         LS::Handle &powerdLsHandle) :
@@ -267,13 +268,17 @@ bool SleepdPowerCategory::chargerConnected(LSHandle *sh, LSMessage *message, voi
     int parseError = 0;
     PMSLOG_DEBUG("Signal recieved from batteryd %s", __FUNCTION__);
 
-    SleepdPowerCategory *ctx = reinterpret_cast<SleepdPowerCategory *>(user_data);
-
     retVal = LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError);
 
     if (retVal) {
-        responseObj.put("connected", (requestObj["connected"].asBool()));
-        ctx->mIsChargerPresent = (requestObj["connected"].asBool());
+        if(requestObj["connected"].asBool())
+        {
+            gIsChargerPresent = true;
+            responseObj.put("connected", true);
+        } else {
+            gIsChargerPresent = false;
+            responseObj.put("connected", false);
+        }
         std::string payload;
         generatePayload(responseObj, payload);
 
@@ -312,24 +317,24 @@ bool SleepdPowerCategory::chargerStatusQuerySignal(LSHandle *sh, LSMessage *mess
         std::string payload;
         generatePayload(responseObj, payload);
 
-        responseObjDock.put("DockConnected", "false");
-        responseObjDock.put("DockPower", "-1");
-        responseObjDock.put("DockSerialNo", "-1");
+        responseObjDock.put("DockConnected", false);
+        responseObjDock.put("DockPower", false);
+        responseObjDock.put("DockSerialNo", "NULL");
 
         if (requestObj["type"].asString() == "usb") {
-            responseObjDock.put("USBConnected", "true");
+            responseObjDock.put("USBConnected", true);
         } else {
-            responseObjDock.put("USBConnected", "false");
+            responseObjDock.put("USBConnected", false);
         }
 
-        responseObjDock.put("ACConnected", "false");
+        responseObjDock.put("ACConnected", false);
         responseObjDock.put("USBName", (requestObj["name"].asString()));
-        responseObjDock.put("Charging", (requestObj["connected"].asBool() ? "true" : "false"));
+        responseObjDock.put("Charging", (requestObj["connected"].asBool() ? true : false));
 
         std::string payloadDock;
         generatePayload(responseObjDock, payloadDock);
 
-        responseObjCharger.put("connected", (requestObj["connected"].asBool() ? "true" : "false"));
+        responseObjCharger.put("connected", (requestObj["connected"].asBool() ? true : false));
         std::string payloadCharger;
         generatePayload(responseObjCharger, payloadCharger);
 
@@ -1006,19 +1011,19 @@ bool SleepdPowerCategory::chargerStatusCallback(LSHandle *sh, LSMessage *message
         if (ret) {
 
             std::string payload;
-            responseObj.put("DockConnected", "false");
-            responseObj.put("DockPower", "-1");
-            responseObj.put("DockSerialNo", "-1");
+            responseObj.put("DockConnected", false);
+            responseObj.put("DockPower", false);
+            responseObj.put("DockSerialNo", "NULL");
 
             if (requestObj["type"].asString() == "usb") {
-                responseObj.put("USBConnected", "true");
+                responseObj.put("USBConnected", true);
             } else {
-                responseObj.put("USBConnected", "false");
+                responseObj.put("USBConnected", false);
             }
 
-            responseObj.put("ACConnected", "false");
+            responseObj.put("ACConnected", false);
             responseObj.put("USBName", (requestObj["name"].asString()));
-            responseObj.put("Charging", (requestObj["connected"].asBool() ? "true" : "false"));
+            responseObj.put("Charging", (requestObj["connected"].asBool() ? true : false));
             generatePayload(responseObj, payload);
 
             retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload.c_str(), NULL);
@@ -1093,7 +1098,6 @@ bool SleepdPowerCategory::batteryStatusCallback(LSHandle *sh, LSMessage *message
     bool retVal;
     LS::Message request(message);
     LSMessage *replyMessage = (LSMessage *)userData;
-    SleepdPowerCategory *ctx = reinterpret_cast<SleepdPowerCategory *>(userData);
     pbnjson::JValue requestObj;
     pbnjson::JValue responseObj = pbnjson::Object();
     int parseError = 0;
@@ -1109,7 +1113,16 @@ bool SleepdPowerCategory::batteryStatusCallback(LSHandle *sh, LSMessage *message
 
         responseObj.put("capacity_mAh", (requestObj["capacity_mAh"].asNumber<int32_t>()));
         responseObj.put("health", true);
-        responseObj.put("charging", ctx->mIsChargerPresent ? "true" : "false");
+        if(gIsChargerPresent)
+        {
+            PMSLOG_DEBUG("payload creation 1");
+            responseObj.put("charging", true);
+        }
+        else
+        {
+             PMSLOG_DEBUG("payload creation 2");
+            responseObj.put("charging", false);
+        }
         std::string payload;
         generatePayload(responseObj, payload);
 
