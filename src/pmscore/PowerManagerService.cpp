@@ -158,7 +158,7 @@ bool PowerManagerService::init()
         return false;
     }
 
-#ifdef POWERD_BACKWARD_COMPATIBILITY
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
     if(configInit() && checkSystemClock())
     {
         PMSLOG_DEBUG("checkSystemClockDone");
