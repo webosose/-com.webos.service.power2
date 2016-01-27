@@ -41,7 +41,7 @@ pkg_check_modules(GLIB2 REQUIRED glib-2.0)
 include_directories(${GLIB2_INCLUDE_DIRS})
 webos_add_compiler_flags(ALL ${GLIB2_CFLAGS_OTHER})
 
-pkg_check_modules(JSON REQUIRED cjson)
+pkg_check_modules(JSON REQUIRED json-c)
 include_directories(${JSON_INCLUDE_DIRS})
 webos_add_compiler_flags(ALL ${JSON_CFLAGS_OTHER})
 

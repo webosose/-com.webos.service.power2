@@ -22,7 +22,7 @@
 #include <string.h>
 #include <assert.h>
 #include <glib.h>
-#include <cjson/json.h>
+#include <json.h>
 #include <luna-service2/lunaservice.h>
 
 #include "powerd.h"

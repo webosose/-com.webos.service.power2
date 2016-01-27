@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <glib.h>
 
-#include "debug.h"
+#include "powerd-debug.h"
 
 #define NSEC_PER_SEC 1000000000L
 #define NSEC_PER_MSEC 1000000L
