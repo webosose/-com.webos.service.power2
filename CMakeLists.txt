@@ -37,9 +37,13 @@ pkg_check_modules(LS2 REQUIRED luna-service2)
 include_directories(${LS2_INCLUDE_DIRS})
 webos_add_compiler_flags(ALL ${LS2_CFLAGS_OTHER})
 
-pkg_check_modules(GLIB_2 REQUIRED glib-2.0)
-include_directories(${GLIB_2_INCLUDE_DIRS})
-webos_add_compiler_flags(ALL ${GLIB_2_CFLAGS_OTHER})
+pkg_check_modules(GLIB2 REQUIRED glib-2.0)
+include_directories(${GLIB2_INCLUDE_DIRS})
+webos_add_compiler_flags(ALL ${GLIB2_CFLAGS_OTHER})
+
+pkg_check_modules(JSON REQUIRED cjson)
+include_directories(${JSON_INCLUDE_DIRS})
+webos_add_compiler_flags(ALL ${JSON_CFLAGS_OTHER})
 
 pkg_check_modules(PMLOGLIB REQUIRED PmLogLib)
 include_directories(${PMLOGLIB_INCLUDE_DIRS})
@@ -77,7 +81,7 @@ add_executable(powermgr ${SOURCE_FILES}
                           )
 
 set(LIBS ${LS2_LDFLAGS}
-         ${GLIB_2_LDFLAGS}
+         ${GLIB2_LDFLAGS}
          ${PMLOGLIB_LDFLAGS}
          ${PBNJSON_CPP_LDFLAGS}
          ${NYXLIB_LDFLAGS}
