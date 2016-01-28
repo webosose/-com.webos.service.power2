@@ -395,7 +395,7 @@ bool SleepdPowerCategory::battchargingStatusQuery(LSMessage &message)
         strcpy(str_buf2, "ReadFail");
     }
 
-    payload = g_strdup_printf("{\"ChargingStatus\":\"%s\",\"OTPevent\":%s}",
+    payload = g_strdup_printf("{\"ChargingStatus\":\"%s\",\"OTPevent\":%s,\"returnValue\":true}",
                               str_buf, str_buf2);
 
     if (!payload) {
@@ -976,13 +976,12 @@ bool SleepdPowerCategory::getFakeBatteryModeCallback(LSHandle *sh, LSMessage *me
 
         if (ret) {
             bool FakeBatteryModeVal = requestObj["FakeBatteryMode"].asBool();
-            char *payload = g_strdup_printf("{\"FakeBatteryMode\":%s}", FakeBatteryModeVal ? "true" : "false");
+            char *payload = g_strdup_printf("{\"FakeBatteryMode\":%s, \"returnValue\": true}", FakeBatteryModeVal ? "true" : "false");
 
             retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload, NULL);
 
             if (!retVal) {
                 PMSLOG_DEBUG("Could not send reply");
-
             }
 
             LSMessageUnref(replyMessage);
@@ -990,6 +989,10 @@ bool SleepdPowerCategory::getFakeBatteryModeCallback(LSHandle *sh, LSMessage *me
         }
     } else {
         PMSLOG_DEBUG("reply message is null");
+        char *payload = g_strdup_printf("{\"returnValue\": false}");
+        retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload, NULL);
+        LSMessageUnref(replyMessage);
+        g_free(payload);
     }
 
     return true;
@@ -1006,37 +1009,40 @@ bool SleepdPowerCategory::chargerStatusCallback(LSHandle *sh, LSMessage *message
     LSMessage *replyMessage = (LSMessage *)ctx;
 
     if (replyMessage && LSMessageGetConnection(replyMessage)) {
-        bool ret = LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError);
-
-        if (ret) {
-
-            std::string payload;
-            responseObj.put("DockConnected", false);
-            responseObj.put("DockPower", false);
-            responseObj.put("DockSerialNo", "NULL");
-
-            if (requestObj["type"].asString() == "usb") {
-                responseObj.put("USBConnected", true);
-            } else {
-                responseObj.put("USBConnected", false);
-            }
-
-            responseObj.put("ACConnected", false);
-            responseObj.put("USBName", (requestObj["name"].asString()));
-            responseObj.put("Charging", (requestObj["connected"].asBool() ? true : false));
-            generatePayload(responseObj, payload);
-
-            retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload.c_str(), NULL);
-
-            if (!retVal) {
-                PMSLOG_DEBUG("Could not send reply");
-
-            }
-
+        if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+            PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "identify schema validation failed");
+            LSUtils::respondWithError(request, errorParseFailed, 0);
             LSMessageUnref(replyMessage);
+            return true;
         }
+
+        std::string payload;
+        responseObj.put("DockConnected", false);
+        responseObj.put("DockPower", false);
+        responseObj.put("DockSerialNo", "NULL");
+
+        if (requestObj["type"].asString() == "usb") {
+            responseObj.put("USBConnected", true);
+        } else {
+            responseObj.put("USBConnected", false);
+        }
+
+        responseObj.put("ACConnected", false);
+        responseObj.put("USBName", (requestObj["name"].asString()));
+        responseObj.put("Charging", (requestObj["connected"].asBool() ? true : false));
+        responseObj.put("returnValue", true);
+        generatePayload(responseObj, payload);
+
+        retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload.c_str(), NULL);
+
+        if (!retVal) {
+            PMSLOG_DEBUG("Could not send reply");
+        }
+
+        LSMessageUnref(replyMessage);
     } else {
         PMSLOG_DEBUG("reply message is null");
+        LSMessageUnref(replyMessage);
     }
 
     return true;
@@ -1056,13 +1062,12 @@ bool SleepdPowerCategory::setFakeBatteryModeCallback(LSHandle *sh, LSMessage *me
 
         if (ret) {
             bool FakeBatteryModeVal = requestObj["FakeBatteryMode"].asBool();
-            char *payload = g_strdup_printf("{\"FakeBatteryMode\":%s}", FakeBatteryModeVal ? "true" : "false");
+            char *payload = g_strdup_printf("{\"FakeBatteryMode\":%s, \"returnValue\": true}", FakeBatteryModeVal ? "true" : "false");
 
             retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload, NULL);
 
             if (!retVal) {
                 PMSLOG_DEBUG("Could not send reply");
-
             }
 
             LSMessageUnref(replyMessage);
@@ -1070,27 +1075,13 @@ bool SleepdPowerCategory::setFakeBatteryModeCallback(LSHandle *sh, LSMessage *me
         }
     } else {
         PMSLOG_DEBUG("reply message is null");
+        char *payload = g_strdup_printf("{\"returnValue\": false}");
+        retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload, NULL);
+        LSMessageUnref(replyMessage);
+        g_free(payload);
     }
 
     return true;
-    /*
-    bool retVal;
-    LSMessage *replyMessage = (LSMessage *)ctx;
-
-    if(replyMessage && LSMessageGetConnection(replyMessage))
-    {
-        retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, LSMessageGetPayload(message), NULL);
-        if (!retVal)
-        {
-               PMSLOG_DEBUG("Could not send reply");
-        }
-        LSMessageUnref(replyMessage);
-    }
-    else
-
-     PMSLOG_DEBUG("Could not send reply");
-
-    return true;*/
 }
 
 bool SleepdPowerCategory::batteryStatusCallback(LSHandle *sh, LSMessage *message, void *userData)
@@ -1102,41 +1093,43 @@ bool SleepdPowerCategory::batteryStatusCallback(LSHandle *sh, LSMessage *message
     pbnjson::JValue responseObj = pbnjson::Object();
     int parseError = 0;
 
-    bool ret = LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError);
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "identify schema validation failed");
+        LSUtils::respondWithError(request, errorParseFailed, 0);
+        LSMessageUnref(replyMessage);
+        return true;
+    }
 
-    if (ret) {
-        responseObj.put("percent", (requestObj["percent"].asNumber<int32_t>()));
-        responseObj.put("percent_ui", (requestObj["percent_ui"].asNumber<int32_t>()));
-        responseObj.put("temperature_C", (requestObj["temperature_C"].asNumber<int32_t>()));
-        responseObj.put("current_mA", (requestObj["current__mA"].asNumber<int32_t>()));
-        responseObj.put("voltage_mV", (requestObj["voltage_mV"].asNumber<int32_t>()));
+    responseObj.put("percent", (requestObj["percent"].asNumber<int32_t>()));
+    responseObj.put("percent_ui", (requestObj["percent_ui"].asNumber<int32_t>()));
+    responseObj.put("temperature_C", (requestObj["temperature_C"].asNumber<int32_t>()));
+    responseObj.put("current_mA", (requestObj["current_mA"].asNumber<int32_t>()));
+    responseObj.put("voltage_mV", (requestObj["voltage_mV"].asNumber<int32_t>()));
+    responseObj.put("capacity_mAh", (requestObj["capacity_mAh"].asNumber<double>()));
+    responseObj.put("health", true);
 
-        responseObj.put("capacity_mAh", (requestObj["capacity_mAh"].asNumber<int32_t>()));
-        responseObj.put("health", true);
-        if(gIsChargerPresent)
-        {
-            PMSLOG_DEBUG("payload creation 1");
-            responseObj.put("charging", true);
-        }
-        else
-        {
-             PMSLOG_DEBUG("payload creation 2");
-            responseObj.put("charging", false);
-        }
-        std::string payload;
-        generatePayload(responseObj, payload);
+    if(gIsChargerPresent) {
+        responseObj.put("charging", true);
+    } else {
+        responseObj.put("charging", false);
+    }
 
-        if (replyMessage && LSMessageGetConnection(replyMessage)) {
-            retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload.c_str(), NULL);
+    responseObj.put("returnValue", true);
 
-            if (!retVal) {
-                PMSLOG_DEBUG("Could not send reply");
-            }
+    std::string payload;
+    generatePayload(responseObj, payload);
 
-            LSMessageUnref(replyMessage);
-        } else {
+    if (replyMessage && LSMessageGetConnection(replyMessage)) {
+        retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload.c_str(), NULL);
+
+        if (!retVal) {
             PMSLOG_DEBUG("Could not send reply");
         }
+
+        LSMessageUnref(replyMessage);
+    } else {
+        PMSLOG_DEBUG("Could not send reply");
+        LSMessageUnref(replyMessage);
     }
 
     return true;
