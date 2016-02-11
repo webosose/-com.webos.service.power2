@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2015-2016 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -71,10 +71,13 @@ int main(int argc, char *argv[])
     }
 
     pmService->getSleepdLsHandle().attachToLoop(mainLoop);
+
+#ifndef TV_BUILD_TRUE
     pmService->getDisplayLsHandle().attachToLoop(mainLoop);
 
     if (pmService->getIsPowerdRegistered())
         pmService->getPowerdLsHandle().attachToLoop(mainLoop);
+#endif
 #endif
     pmService->attachToLoop(mainLoop);
 
