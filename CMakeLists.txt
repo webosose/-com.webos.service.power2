@@ -1,6 +1,6 @@
 # @@@LICENSE
 #
-#   Copyright (c) 2015 LG Electronics Inc. All Rights Reserved
+#   Copyright (c) 2015-2016 LG Electronics Inc. All Rights Reserved
 #
 # LICENSE@@@
 
@@ -37,9 +37,13 @@ pkg_check_modules(LS2 REQUIRED luna-service2)
 include_directories(${LS2_INCLUDE_DIRS})
 webos_add_compiler_flags(ALL ${LS2_CFLAGS_OTHER})
 
-pkg_check_modules(GLIB_2 REQUIRED glib-2.0)
-include_directories(${GLIB_2_INCLUDE_DIRS})
-webos_add_compiler_flags(ALL ${GLIB_2_CFLAGS_OTHER})
+pkg_check_modules(GLIB2 REQUIRED glib-2.0)
+include_directories(${GLIB2_INCLUDE_DIRS})
+webos_add_compiler_flags(ALL ${GLIB2_CFLAGS_OTHER})
+
+pkg_check_modules(JSON REQUIRED json-c)
+include_directories(${JSON_INCLUDE_DIRS})
+webos_add_compiler_flags(ALL ${JSON_CFLAGS_OTHER})
 
 pkg_check_modules(PMLOGLIB REQUIRED PmLogLib)
 include_directories(${PMLOGLIB_INCLUDE_DIRS})
@@ -68,6 +72,11 @@ include_directories(include/internal)
 add_definitions(-DSLEEPD_BACKWARD_COMPATIBILITY)
 add_definitions(-DENABLE_WAKELOCK_FOR_SLEEP_STATE)
 add_definitions(-DENABLE_POWEROFF_REBOOT_SIGNAL)
+
+if(TV_BUILD)
+    add_definitions(-DTV_BUILD_TRUE)
+endif()
+
 file(GLOB SOURCE_FILES src/*/*.cpp)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g -Werror")
@@ -77,7 +86,7 @@ add_executable(powermgr ${SOURCE_FILES}
                           )
 
 set(LIBS ${LS2_LDFLAGS}
-         ${GLIB_2_LDFLAGS}
+         ${GLIB2_LDFLAGS}
          ${PMLOGLIB_LDFLAGS}
          ${PBNJSON_CPP_LDFLAGS}
          ${NYXLIB_LDFLAGS}
@@ -111,7 +120,9 @@ install(PROGRAMS scripts/public/update_timestamp DESTINATION ${WEBOS_INSTALL_SBI
 webos_build_daemon()
 webos_build_system_bus_files()
 
-add_subdirectory(libpowerd)
+if(!TV_BUILD)
+    add_subdirectory(libpowerd)
+endif()
 
 #unit test for power manager service(powermgr)
 #for gtest framework

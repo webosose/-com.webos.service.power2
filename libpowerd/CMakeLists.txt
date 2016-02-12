@@ -21,5 +21,5 @@ webos_build_pkgconfig(${CMAKE_SOURCE_DIR}/files/pkgconfig/powerd)
 webos_add_compiler_flags(ALL -fPIC -DSTACK_GROWS_DOWN)
 
 add_library(libpowerd SHARED clock.c commands.c init.c wait.c)
-target_link_libraries(libpowerd ${GLIB2_LDFLAGS} ${LUNASERVICE2_LDFLAGS} ${CJSON_LDFLAGS} pthread rt)
+target_link_libraries(libpowerd ${GLIB2_LDFLAGS} ${LS2_LDFLAGS} ${JSON_LDFLAGS} pthread rt)
 webos_build_library(NAME libpowerd)
