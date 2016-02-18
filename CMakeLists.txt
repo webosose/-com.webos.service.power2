@@ -117,17 +117,7 @@ install(PROGRAMS scripts/public/set_cpu_online DESTINATION ${WEBOS_INSTALL_SBIND
 install(PROGRAMS scripts/public/set_cpu_offline DESTINATION ${WEBOS_INSTALL_SBINDIR})
 install(PROGRAMS scripts/public/update_timestamp DESTINATION ${WEBOS_INSTALL_SBINDIR})
 
-if(${WEBOS_TARGET_MACHINE_IMPL} STREQUAL emulator)
-	set(upstartfile files/launch/emulator/powermgr.conf)
-else()
-    if(TV_BUILD)
-	   set(upstartfile files/launch/emulator/powermgr.conf)
-	else()
-	   set(upstartfile files/launch/device/powermgr.conf)
-	endif()
-endif()
-
-webos_build_daemon(NAME powermgr LAUNCH ${upstartfile})
+webos_build_daemon()
 webos_build_system_bus_files()
 
 if(!TV_BUILD)
