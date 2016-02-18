@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015-2016 LG Electronics, Inc.
+//      Copyright (c) 2015 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -239,15 +239,15 @@ void ShutdownCategoryMethods::sendInitiateReply(LSMessage &message)
 
     NyxUtil::getInstance().setRtcAlarm();
 
-    responseObj.put("returnValue", true);
-    LSUtils::postToClient(request, responseObj);
-    LSMessageUnref(&message);
-
     if (mReboot) {
         NyxUtil::getInstance().reboot(requestObj["reason"].asString(), requestObj["params"].asString());
     } else {
         NyxUtil::getInstance().shutdown(requestObj["reason"].asString());
     }
+
+    responseObj.put("returnValue", true);
+    LSUtils::postToClient(request, responseObj);
+    LSMessageUnref(&message);
 }
 
 /**

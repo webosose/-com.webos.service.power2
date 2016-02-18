@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015-2016 LG Electronics, Inc.
+//      Copyright (c) 2015 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -86,20 +86,16 @@ bool PowerManagerService::configInit(void)
 PowerManagerService::PowerManagerService(GMainLoop *mainLoop) : LS::Handle(LS::registerService(serviceUri.c_str())),
     mLoopdata(mainLoop)
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
-    , mSleepdHandle(LS::registerService(sleepdUri.c_str()))
-#endif
-#ifndef TV_BUILD_TRUE
-    , mDisplayHandle(LS::registerService(displayUri.c_str()))
+    , mSleepdHandle(LS::registerService(sleepdUri.c_str())),
+    mDisplayHandle(LS::registerService(displayUri.c_str()))
 #endif
 {
     LS_CREATE_CATEGORY_BEGIN(PowerManagerService, rootAPI)
     LS_CATEGORY_METHOD(registerClient)
-    LS_CATEGORY_METHOD(clientCancelByName)
-#ifndef TV_BUILD_TRUE
     LS_CATEGORY_METHOD(setKeepAwake)
     LS_CATEGORY_METHOD(clearKeepAwake)
     LS_CATEGORY_METHOD(notifyAlarmExpiry)
-#endif
+    LS_CATEGORY_METHOD(clientCancelByName)
     LS_CREATE_CATEGORY_END
 
     static const LSSignal pmsSignals[] = {
@@ -119,9 +115,6 @@ PowerManagerService::PowerManagerService(GMainLoop *mainLoop) : LS::Handle(LS::r
     gHandle = this->get();
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
     gSleepdLsHandle = mSleepdHandle.get();
-#endif
-
-#ifndef TV_BUILD_TRUE
     gDisplayLsHandle = mDisplayHandle.get();
 #endif
 }
@@ -144,7 +137,6 @@ bool PowerManagerService::init()
     mShutdownCategoryHandle = new ShutdownCategoryMethods(*this);
     mWakelocksMgr = new WakelockClientsMgrImpl();
 
-#ifndef TV_BUILD_TRUE
     try {
         mPowerdHandle = LS::registerService(powerdServiceUri.c_str());
         gPowerdLsHandle = mPowerdHandle.get();
@@ -154,10 +146,6 @@ bool PowerManagerService::init()
         mIsPowerdRegistered = false;
         PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register powerd ");
     }
-#else
-    mIsPowerdRegistered = false;
-    PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register powerd ");
-#endif
 
     if (!mShutdownCategoryHandle || !mShutdownCategoryHandle->init() || !mWakelocksMgr) {
         PMSLOG_ERROR(MSGID_MEM_ALLOC_FAIL, 0, "memory allocation error");
@@ -170,7 +158,7 @@ bool PowerManagerService::init()
         return false;
     }
 
-#ifndef TV_BUILD_TRUE
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
     if(configInit() && checkSystemClock())
     {
         PMSLOG_DEBUG("checkSystemClockDone");
@@ -655,7 +643,6 @@ void PowerManagerService::setSubscriptionCancelCallback()
                      "Error in setting subscription cancel function");
     }
 
-#ifndef TV_BUILD_TRUE
     retVal = LSSubscriptionSetCancelFunction(mDisplayHandle.get(),
              cancelSubscription, this, &lserror);
 
@@ -664,13 +651,13 @@ void PowerManagerService::setSubscriptionCancelCallback()
                      "Error in setting Display subscription cancel function");
         LSErrorFree(&lserror);
     }
-#endif
+
     LSErrorFree(&lserror);
 #endif
 
 }
 
-#ifndef TV_BUILD_TRUE
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
 bool PowerManagerService::cancelSubscription(LSHandle *sh, LSMessage *msg, void *ctx)
 {
     LSError lserror;
@@ -723,9 +710,7 @@ bool PowerManagerService::clientSubscriptionCancel(LSHandle *sh, LSMessage *msg,
     std::string clientId = LSMessageGetUniqueToken(msg);
     PMSLOG_DEBUG("subscription cancel deregisterClient[%s]",LSMessageGetMethod(msg));
     ptrHandle->deregisterClient(msg,clientId);
-#ifndef TV_BUILD_TRUE
     cancelSubscription(sh, msg, ctx);
-#endif
     return true;
 }
 

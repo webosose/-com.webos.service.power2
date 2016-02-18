@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015-2016 LG Electronics, Inc.
+//      Copyright (c) 2015 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -57,7 +57,6 @@ void NyxUtil::reboot(const std::string &reason, const std::string &params)
 {
     PMSLOG_INFO(MSGID_FRC_SHUTDOWN, 1, PMLOGKS("Reason", reason.c_str()),
                 "Pwrevents shutting down system");
-#ifndef TV_BUILD_TRUE
     nyx_system_reboot_type_t rebootType = NYX_SYSTEM_NORMAL_REBOOT;
 
     if (reason.empty()) {
@@ -75,9 +74,6 @@ void NyxUtil::reboot(const std::string &reason, const std::string &params)
 
     //TODO: fasthalt info has to be read from the configfile
     nyx_system_reboot(mNyxDeviceHandle, (nyx_system_shutdown_type_t)rebootType, reason.c_str());
-#else
-    nyx_system_reboot(mNyxDeviceHandle, NYX_SYSTEM_EMERG_SHUTDOWN, reason.c_str());
-#endif
 }
 
 void NyxUtil::setRtcAlarm()

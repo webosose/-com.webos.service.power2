@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015-2016 LG Electronics, Inc.
+//      Copyright (c) 2015 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -50,15 +50,13 @@ bool SleepdPowerCategory::init(bool isPowerdUp)
 {
     LS_CREATE_CATEGORY_BEGIN(SleepdPowerCategory, powerCategoryAPI)
     LS_CATEGORY_METHOD(identify)
+    LS_CATEGORY_METHOD(wakeLockRegister)
+    LS_CATEGORY_METHOD(setWakeLock)
     LS_CATEGORY_METHOD(clientCancelByName)
     LS_CATEGORY_METHOD(activityStart)
     LS_CATEGORY_METHOD(activityEnd)
-#ifndef TV_BUILD_TRUE
     LS_CATEGORY_METHOD(somebodyWantsWakeup)
     LS_CATEGORY_METHOD(systemTimeChanged)
-    LS_CATEGORY_METHOD(wakeLockRegister)
-    LS_CATEGORY_METHOD(setWakeLock)
-#endif
     LS_CREATE_CATEGORY_END
 
     static LSSignal powerCategorySignals[] = {
