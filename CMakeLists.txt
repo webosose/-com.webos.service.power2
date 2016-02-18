@@ -130,8 +130,8 @@ endif()
 webos_build_daemon(NAME powermgr LAUNCH ${upstartfile})
 webos_build_system_bus_files()
 
-if(NOT TV_BUILD)
-  add_subdirectory(libpowerd)
+if(!TV_BUILD)
+    add_subdirectory(libpowerd)
 endif()
 
 #unit test for power manager service(powermgr)
