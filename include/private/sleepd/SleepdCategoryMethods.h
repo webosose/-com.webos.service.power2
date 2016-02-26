@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2015-2016 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -25,17 +25,25 @@ class SleepdTimeoutCategory;
 class SleepdCategoryMethods
 {
     public:
-        SleepdCategoryMethods(PowerManagerService &pmsRef, LS::Handle &sleepdLsHandle, LS::Handle &powerdLsHandle);
+        SleepdCategoryMethods(PowerManagerService &pmsRef, GMainLoop *mainLoop);
         ~SleepdCategoryMethods();
         bool init();
+        PowerManagerService& getPmsHandle()
+        {
+            return mRefPowerManagerService;
+        }
 
         SleepdCategoryMethods(const SleepdCategoryMethods &) = delete;
         SleepdCategoryMethods &operator=(const SleepdCategoryMethods &) = delete;
 
+        static bool clientSubscriptionCancel(LSHandle *sh, LSMessage *msg, void *ctx);
+        void registerSubscriptionCancelCallback();
+
     private:
         PowerManagerService    &mRefPowerManagerService;
-        LS::Handle             &mRefSleepdLsHandle;
-        LS::Handle             &mRefPowerdLsHandle;
+        GMainLoop              *mLoopdata = nullptr;
+        LS::Handle             mRefSleepdLsHandle;
+        LS::Handle             mRefPowerdLsHandle;
         SleepdPowerCategory    *mPtrSleepdPowerCategory = nullptr;
         SleepdShutdownCategory *mPtrSleepdShutdownCategory = nullptr;
         SleepdTimeCategory     *mPtrSleepdTimeCategory = nullptr;

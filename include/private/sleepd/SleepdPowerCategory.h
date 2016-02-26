@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2015-2016 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -22,7 +22,7 @@ class SleepdPowerCategory
     public:
         SleepdPowerCategory(PowerManagerService &refHandle, LS::Handle &sleepdLsHandle, LS::Handle &powerdLsHandle);
         virtual ~SleepdPowerCategory() = default;
-        bool init(bool isPowerdUp);
+        bool init();
 
         SleepdPowerCategory(const SleepdPowerCategory &) = delete;
         SleepdPowerCategory &operator=(const SleepdPowerCategory &) = delete;
@@ -36,6 +36,8 @@ class SleepdPowerCategory
         bool somebodyWantsWakeup(LSMessage &message);
         bool activityStart(LSMessage &message);
         bool activityEnd(LSMessage &message);
+        bool forceSuspend(LSMessage &message);
+        bool TESTSuspend(LSMessage &message);
         void addSubscription(LSMessage &message);
         void registerPowerdMethods(LS::Handle &powerdLsHandle);
 
@@ -57,8 +59,7 @@ class SleepdPowerCategory
         int readLineFromFile(const char *path, char *buf, size_t count);
         static bool batteryStatusQuerySignal(LSHandle *sh, LSMessage *message, void *user_data);
         static bool chargerStatusQuerySignal(LSHandle *sh, LSMessage *message, void *user_data);
-        static bool getFakeBatteryModeCallback(LSHandle *sh, LSMessage *message, void *ctx);
-        static bool setFakeBatteryModeCallback(LSHandle *sh, LSMessage *message, void *ctx);
+        static bool fakeBatteryModeCallback(LSHandle *sh, LSMessage *message, void *ctx);
         static bool chargerStatusCallback(LSHandle *sh, LSMessage *message, void *ctx);
         static bool batteryStatusCallback(LSHandle *sh, LSMessage *message, void *ctx);
         static bool batterydServiceStatusCb(LSHandle *sh,

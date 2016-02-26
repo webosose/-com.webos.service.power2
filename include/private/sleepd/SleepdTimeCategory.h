@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2015-2016 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -18,16 +18,18 @@
 class SleepdTimeCategory
 {
     public:
-        SleepdTimeCategory(LS::Handle &refPowerdLsHandle);
+        SleepdTimeCategory(LS::Handle &refSleepdLsHandle, LS::Handle &refPowerdLsHandle);
         ~SleepdTimeCategory() = default;
 
-        bool init(bool isPowerdUp);
+        bool init();
         bool alarmAddCalendar(LSMessage &message);
         bool alarmAdd(LSMessage &message);
         bool alarmQuery(LSMessage &message);
         bool alarmRemove(LSMessage &message);
+        bool internalAlarmFired(LSMessage &message);
 
     private:
+        LS::Handle &mRefSleepdLsHandle;
         LS::Handle &mRefPowerdLsHandle;
 };
 

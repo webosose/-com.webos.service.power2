@@ -74,7 +74,7 @@ void StateShutdownApps::sendSignalShutdownApplications()
         mLsHandle.sendSignal(signalURI, "{}");
         PMSLOG_DEBUG("shutdownApplications signal is sent");
     } catch (LS::Error &error) {
-        PMSLOG_ERROR(MSGID_SHUTDOWN_APPS_SIG_FAIL, 0, "error while sendingshutdownApplications signal");
+        PMSLOG_ERROR(MSGID_SHUTDOWN_APPS_SIG_FAIL, 0, "error while sendingshutdownApplications signal: %s", error.what());
     }
 }
 

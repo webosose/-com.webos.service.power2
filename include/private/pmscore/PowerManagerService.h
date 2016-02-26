@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2015-2016 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -21,8 +21,6 @@ class ShutdownCategoryMethods;
 class WakelockClientsMgr;
 
 const std::string serviceUri = "com.webos.service.power2";
-const std::string displayUri = "com.palm.display";
-const std::string sleepdUri = "com.palm.sleep";
 
 class PowerManagerService: public LS::Handle
 {
@@ -31,54 +29,36 @@ class PowerManagerService: public LS::Handle
         ~PowerManagerService();
 
         bool init();
-        void shutDown();
+        bool initPmSupportInterface();
         bool setKeepAwake(LSMessage &message);
         bool clearKeepAwake(LSMessage &message);
         bool registerClient(LSMessage &message);
         bool notifyAlarmExpiry(LSMessage &message);
+        bool clientCancelByName(LSMessage &message);
+        bool isClientRegistered(const std::string &clientId);
+        bool isSuspendedState();
+        bool checkSystemClock(void);
+        bool setAwake(int timeout, LS::Message &request, std::string clientId, std::string sender, bool isTimeout = false);
+        bool clearAlarm(const std::string &key);
         void addSubscription(LSMessage &message);
-        void setSubscriptionCancelCallback();
+        void registerSubscriptionCancelCallback();
+        void deregisterClient(LSMessage *msg, const std::string &clientId);
+        void shutDown();
         static bool clientSubscriptionCancel(LSHandle *sh, LSMessage *msg, void *ctx);
         static bool setSystemTimeCallback(LSHandle *sh, LSMessage *message, void *ctx);
         ShutdownCategoryMethods &getShutdownCategoryHandle();
-
-#ifdef SLEEPD_BACKWARD_COMPATIBILITY
-        void setActivityStart(bool state)
-        {
-            mActivityStart = state;
-        }
-        GMainLoop *getGMainLoop()
-        {
-            return mLoopdata;
-        }
-
-        bool clientCancelByName(LSMessage &message);
-        LS::Handle &getSleepdLsHandle();
-        LS::Handle &getPowerdLsHandle();
-        LS::Handle &getDisplayLsHandle();
-        bool isClientRegistered(const std::string &clientId);
-        bool isSuspendedState();
-        static bool cancelSubscription(LSHandle *sh, LSMessage *msg, void *ctx);
-        static bool dimModeDisableCallback(LSHandle *sh, LSMessage *message, void *ctx);
         WakelockClientsMgr *getWakeLockManageRef()
         {
             return mWakelocksMgr;
         }
-        bool getIsPowerdRegistered()
-        {
-            return mIsPowerdRegistered;
-        }
-#endif
-        bool checkSystemClock(void);
-        bool setAwake(int timeout, LS::Message &request, std::string clientId, std::string sender, bool isTimeout = false);
-        bool clearAlarm(const std::string &key);
 
     private:
-        bool initPmSupportInterface();
         bool configInit(void);
         bool exit(LSMessage &message);
         bool setAlarm(const std::string &key, int timeout);
-        void deregisterClient(LSMessage *msg, const std::string &clientId);
+
+    public:
+        LSHandle *mSleepdHandle;
 
     private:
         GMainLoop *mLoopdata = nullptr;
@@ -86,13 +66,6 @@ class PowerManagerService: public LS::Handle
         ShutdownCategoryMethods *mShutdownCategoryHandle = nullptr;
         WakelockClientsMgr *mWakelocksMgr = nullptr;
         long mDifferenceBetweenRtcAndSystemClock = 0;
-#ifdef SLEEPD_BACKWARD_COMPATIBILITY
-        bool mActivityStart = false;
-        bool mIsPowerdRegistered = false;
-        LS::Handle mSleepdHandle;
-        LS::Handle mDisplayHandle;
-        LS::Handle mPowerdHandle;
-#endif
 };
 
 #endif //_PMS_MGR_SERVICE_H_

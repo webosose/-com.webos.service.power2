@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2015-2016 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -49,33 +49,35 @@ int main(int argc, char *argv[])
     mainLoop = g_main_loop_new(NULL, FALSE);
 
     if (!mainLoop) {
-        PMSLOG_DEBUG("Unable to initiate g_main_loop");
+        PMSLOG_ERROR(MSGID_MAINLOOP_FAIL, 0, "Unable to initiate g_main_loop");
         return EXIT_FAILURE;
     }
 
     std::unique_ptr<PowerManagerService> pmService(new PowerManagerService(mainLoop));
 
     if (!pmService || !pmService->init()) {
-        PMSLOG_DEBUG("Unable to create PowerManagerService instance");
+        PMSLOG_ERROR(MSGID_SRVC_REGISTER_FAIL, 0, "PMS service registration failed");
         g_main_loop_unref(mainLoop);
         return EXIT_FAILURE;
     }
 
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
-    std::unique_ptr<SleepdCategoryMethods> sleepdMethods(new SleepdCategoryMethods(*pmService, pmService->getSleepdLsHandle(), pmService->getPowerdLsHandle()));
+    std::unique_ptr<SleepdCategoryMethods> sleepdMethods(new SleepdCategoryMethods(*pmService, mainLoop));
 
     if (!(sleepdMethods && sleepdMethods->init())) {
-        PMSLOG_DEBUG("Unable to create SleepdCategoryMethods instance/initialize it");
+        PMSLOG_ERROR(MSGID_SRVC_REGISTER_FAIL, 0, "Sleepd service registration failed");
+        g_main_loop_unref(mainLoop);
+        return EXIT_FAILURE;
+    }
+#endif
+
+    if (!pmService->initPmSupportInterface())
+    {
+        PMSLOG_ERROR(MSGID_SRVC_REGISTER_FAIL, 0, "Library Init failed");
         g_main_loop_unref(mainLoop);
         return EXIT_FAILURE;
     }
 
-    pmService->getSleepdLsHandle().attachToLoop(mainLoop);
-    pmService->getDisplayLsHandle().attachToLoop(mainLoop);
-
-    if (pmService->getIsPowerdRegistered())
-        pmService->getPowerdLsHandle().attachToLoop(mainLoop);
-#endif
     pmService->attachToLoop(mainLoop);
 
     g_main_loop_run(mainLoop);
