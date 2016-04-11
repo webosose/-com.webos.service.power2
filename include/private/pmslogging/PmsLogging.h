@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2015-2016 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -51,6 +51,8 @@
 #define MSGID_SET_KEEP_AWAKE                      "SET_KEEP_AWAKE"           // setKeepAwake method
 #define MSGID_SCEMA_VAL_FAIL                      "SCHEMA_VALIDATION_FAIL"   // schema validation is failed
 #define MSGID_SERVER_STATUS_REGISTRY_FAIL         "SERVER_STATUS_REGISTRY_FAIL"  //server status registry failed
+#define MSGID_TIME_RESTORE_FAIL                   "TIME_RESTORE_FAIL"        // Could not restore the time on bootup
+#define MSGID_INVALID_INPUT                       "INVALID_INPUT"            // Invalid inputs passed
 
 /** config.c */
 #define MSGID_CONFIG_FILE_LOAD_ERR                "CONFIG_FILE_LOAD_ERR"     //Could not load config file from specified path
@@ -58,6 +60,7 @@
 /** main.c */
 #define MSGID_NYX_DEVICE_OPEN_FAIL                "NYX_DEVICE_OPEN_FAIL"     //Failed to open nyx device
 #define MSGID_SRVC_REGISTER_FAIL                  "SRVC_REGISTER_FAIL"       //luna-bus registraton to check charger status failed
+#define MSGID_MAINLOOP_FAIL                       "MAINLOOP_FAIL"            //Unable to initiate g_main_loop
 
 /** init.c */
 #define MSGID_HOOKINIT_FAIL                       "HOOKINIT_FAIL"            //Failed to initialize
@@ -80,7 +83,7 @@
 #define MSGID_PTHREAD_CREATE_FAIL                 "PTHREAD_CREATE_FAIL"      // Could not create SuspendThread
 #define MSGID_NYX_DEV_OPEN_FAIL                   "NYX_DEV_OPEN_FAIL"        // Unable to open the nyx device led controller
 #define MSGID_SUSPEND_DEBUG                       "SUSPEND_STATE_DEBUG"      // For suspend state machine debug
-#define MSGID_GENERAL                             "SUSPEND_STATE_DEBUG"      // For suspend state machine debug
+#define MSGID_GENERAL                             "GENERAL_DEBUG"            // For general debug message
 
 /** suspend_ipc.c */
 #define MSGID_LS_SUBSCRIB_SETFUN_FAIL             "LS_SUBSCRIB_SETFUN_FAIL"  // Error in setting cancel function

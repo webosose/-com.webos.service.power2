@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2015-2016 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -22,11 +22,11 @@ class SleepdShutdownCategory
     public:
         SleepdShutdownCategory(ShutdownCategoryMethods &pmsRef, LS::Handle &refLsHandle, LS::Handle &refPowerdLsHandle);
         ~SleepdShutdownCategory() = default;
-        bool init(bool isPowerdUp);
 
         SleepdShutdownCategory(const SleepdShutdownCategory &) = delete;
         SleepdShutdownCategory &operator=(const SleepdShutdownCategory &) = delete;
 
+        bool init();
         bool initiate(LSMessage &message);
         bool shutdownApplicationsAck(LSMessage &message);
         bool shutdownApplicationsRegister(LSMessage &message);
@@ -34,10 +34,11 @@ class SleepdShutdownCategory
         bool shutdownServicesAck(LSMessage &message);
         bool machineOff(LSMessage &message);
         bool machineReboot(LSMessage &message);
+        bool TESTresetShutdownState(LSMessage &message);
 
     private:
         ShutdownCategoryMethods &mRefShutdownCategoryMethods;
-        LS::Handle          &mRefLsHandle;
+        LS::Handle          &mRefSleepdLsHandle;
         LS::Handle          &mRefPowerdLsHandle;
 };
 

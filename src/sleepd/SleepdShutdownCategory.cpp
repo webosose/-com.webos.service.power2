@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2015-2016 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -17,17 +17,16 @@
 #include "NyxUtil.h"
 #include "ShutdownClientsMgr.h"
 
-SleepdShutdownCategory::SleepdShutdownCategory(ShutdownCategoryMethods &handle, LS::Handle &refLsHandle,
+SleepdShutdownCategory::SleepdShutdownCategory(ShutdownCategoryMethods &handle, LS::Handle &refSleepdLsHandle,
         LS::Handle &refPowerdLsHandle) :
     mRefShutdownCategoryMethods(handle),
-    mRefLsHandle(refLsHandle),
+    mRefSleepdLsHandle(refSleepdLsHandle),
     mRefPowerdLsHandle(refPowerdLsHandle)
 {
 }
 
-bool SleepdShutdownCategory::init(bool isPowerdUp)
+bool SleepdShutdownCategory::init()
 {
-
     LS_CREATE_CATEGORY_BEGIN(SleepdShutdownCategory, shutdownAPI)
     LS_CATEGORY_METHOD(initiate)
     LS_CATEGORY_METHOD(machineReboot)
@@ -36,6 +35,7 @@ bool SleepdShutdownCategory::init(bool isPowerdUp)
     LS_CATEGORY_METHOD(shutdownApplicationsAck)
     LS_CATEGORY_METHOD(shutdownServicesRegister)
     LS_CATEGORY_METHOD(shutdownServicesAck)
+    LS_CATEGORY_METHOD(TESTresetShutdownState)
     LS_CREATE_CATEGORY_END
 
     static const LSSignal shutdownSignals[] = {
@@ -45,26 +45,25 @@ bool SleepdShutdownCategory::init(bool isPowerdUp)
     };
 
     try {
-        mRefLsHandle.registerCategory("/shutdown",
+        mRefSleepdLsHandle.registerCategory("/shutdown",
                                       LS_CATEGORY_TABLE_NAME(shutdownAPI), shutdownSignals, nullptr);
-        mRefLsHandle.setCategoryData("/shutdown", this);
+        mRefSleepdLsHandle.setCategoryData("/shutdown", this);
         PMSLOG_INFO(MSGID_SHUTDOWN_DEBUG, 0, "%s, %s, sleepdsupport shutdown category registration is success**", __FILE__,
                     __FUNCTION__);
     } catch (LS::Error &lunaError) {
-        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register sleepdsupport shutdown category");
+        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register sleepdsupport shutdown category: %s", lunaError.what());
         return false;
     }
 
-    if (isPowerdUp) {
-        try {
-            mRefPowerdLsHandle.registerCategory("/shutdown",
-                                                LS_CATEGORY_TABLE_NAME(shutdownAPI), shutdownSignals, nullptr);
-            mRefPowerdLsHandle.setCategoryData("/shutdown", this);
-            PMSLOG_INFO(MSGID_SHUTDOWN_DEBUG, 0, "%s, %s, powerd shutdown category registration is success**", __FILE__,
-                        __FUNCTION__);
-        } catch (LS::Error &lunaError) {
-            PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register powerd shutdown category");
-        }
+    try {
+        mRefPowerdLsHandle.registerCategory("/shutdown",
+                                            LS_CATEGORY_TABLE_NAME(shutdownAPI), shutdownSignals, nullptr);
+        mRefPowerdLsHandle.setCategoryData("/shutdown", this);
+        PMSLOG_INFO(MSGID_SHUTDOWN_DEBUG, 0, "%s, %s, powerd shutdown category registration is success**", __FILE__,
+                    __FUNCTION__);
+    } catch (LS::Error &lunaError) {
+        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register powerd shutdown category: %s", lunaError.what());
+        return false;
     }
 
     return true;
@@ -76,6 +75,7 @@ bool SleepdShutdownCategory::initiate(LSMessage &message)
     pbnjson::JValue responseObj = pbnjson::Object();
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
@@ -137,4 +137,23 @@ bool SleepdShutdownCategory::machineOff(LSMessage &message)
 bool SleepdShutdownCategory::machineReboot(LSMessage &message)
 {
     return mRefShutdownCategoryMethods.machineReboot(message);
+}
+
+bool SleepdShutdownCategory::TESTresetShutdownState(LSMessage &message)
+{
+    LS::Message request(&message);
+    pbnjson::JValue responseObj = pbnjson::Object();
+    pbnjson::JValue requestObj;
+    int parseError = 0;
+
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "identify schema validation failed");
+        LSUtils::respondWithError(request, errorParseFailed, 0);
+        return true;
+    }
+
+    responseObj.put("returnValue", true);
+    LSUtils::postToClient(request, responseObj);
+
+    return true;
 }

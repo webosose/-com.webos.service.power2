@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2015-2016 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -51,8 +51,6 @@ void StateShutdownServices::sendSignalShutdownServices()
     if (gSleepdLsHandle) {
         LSError lserror;
         LSErrorInit(&lserror);
-        char *payload = g_strdup_printf("{\"shutdowntype\":\"%s\"}",
-                                        mShutdownStateHandler->getRebootState() ? "reboot" : "powerOff");
 
         PMSLOG_INFO(MSGID_SHUTDOWN_DEBUG, 0, "sending sleepd shutdownServices signal");
 
@@ -66,10 +64,6 @@ void StateShutdownServices::sendSignalShutdownServices()
             LSErrorPrint(&lserror, stderr);
             LSErrorFree(&lserror);
         }
-
-        if (payload) {
-            g_free(payload);
-        }
     }
 
 #endif
@@ -78,7 +72,7 @@ void StateShutdownServices::sendSignalShutdownServices()
         mLsHandle.sendSignal(signalURI, "{}");
         PMSLOG_DEBUG("shutdownServices signal is sent");
     } catch (LS::Error &error) {
-        PMSLOG_ERROR(MSGID_SHUTDOWN_SRVC_SIG_FAIL, 0, "erro while sendingshutdownServices signal");
+        PMSLOG_ERROR(MSGID_SHUTDOWN_SRVC_SIG_FAIL, 0, "erro while sendingshutdownServices signal: %s", error.what());
     }
 }
 

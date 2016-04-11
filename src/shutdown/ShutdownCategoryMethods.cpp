@@ -46,7 +46,7 @@ ShutdownCategoryMethods::ShutdownCategoryMethods(LS::Handle &refLsHandle) :
                     "%s, %s, shutdown category registration is success**", __FILE__,
                     __FUNCTION__);
     } catch (LS::Error &lunaError) {
-        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register shutdown category");
+        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register shutdown category: %s", lunaError.what());
     }
 }
 
@@ -140,7 +140,6 @@ bool ShutdownCategoryMethods::machineOff(LSMessage &message)
     LS::Message request(&message);
     pbnjson::JValue responseObj = pbnjson::Object();
     pbnjson::JValue requestObj;
-    std::string shutdownReason;
 
     int parseError = 0;
     const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(reason, string))REQUIRED_1(reason));
@@ -308,8 +307,6 @@ bool ShutdownCategoryMethods::shutdownApplicationsRegister(LSMessage &message)
     LS::Message request(&message);
     pbnjson::JValue responseObj = pbnjson::Object();
     pbnjson::JValue requestObj;
-
-#ifdef SLEEPD_BACKWARD_COMPATIBILITY
     LSHandle *messageHandle = LSMessageGetConnection(&message);
     std::string schema;
 
@@ -318,10 +315,6 @@ bool ShutdownCategoryMethods::shutdownApplicationsRegister(LSMessage &message)
     } else {
         schema = RELAXED_SCHEMA(PROPS_1(PROP(clientName, string))REQUIRED_1(clientName));
     }
-
-#else
-    const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(clientName, string))REQUIRED_1(clientName));
-#endif
 
     int parseError = 0;
 
@@ -438,8 +431,6 @@ bool ShutdownCategoryMethods::shutdownServicesRegister(LSMessage &message)
     pbnjson::JValue responseObj = pbnjson::Object();
     pbnjson::JValue requestObj;
     int parseError = 0;
-
-#ifdef SLEEPD_BACKWARD_COMPATIBILITY
     LSHandle *messageHandle = LSMessageGetConnection(&message);
     std::string schema;
 
@@ -448,10 +439,6 @@ bool ShutdownCategoryMethods::shutdownServicesRegister(LSMessage &message)
     } else {
         schema = RELAXED_SCHEMA(PROPS_1(PROP(clientName, string))REQUIRED_1(clientName));
     }
-
-#else
-    const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(clientName, string))REQUIRED_1(clientName));
-#endif
 
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
         PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "shutdownServicesRegister schema validation failed");

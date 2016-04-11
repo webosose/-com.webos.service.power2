@@ -1,6 +1,6 @@
 # @@@LICENSE
 #
-#   Copyright (c) 2015-2016 LG Electronics Inc. All Rights Reserved
+#   Copyright (c) 2015 LG Electronics Inc. All Rights Reserved
 #
 # LICENSE@@@
 
@@ -72,14 +72,9 @@ include_directories(include/internal)
 add_definitions(-DSLEEPD_BACKWARD_COMPATIBILITY)
 add_definitions(-DENABLE_WAKELOCK_FOR_SLEEP_STATE)
 add_definitions(-DENABLE_POWEROFF_REBOOT_SIGNAL)
-
-if(TV_BUILD)
-    add_definitions(-DTV_BUILD_TRUE)
-endif()
-
 file(GLOB SOURCE_FILES src/*/*.cpp)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g -Werror")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 
 add_executable(powermgr ${SOURCE_FILES}
                           src/main.cpp
@@ -117,22 +112,10 @@ install(PROGRAMS scripts/public/set_cpu_online DESTINATION ${WEBOS_INSTALL_SBIND
 install(PROGRAMS scripts/public/set_cpu_offline DESTINATION ${WEBOS_INSTALL_SBINDIR})
 install(PROGRAMS scripts/public/update_timestamp DESTINATION ${WEBOS_INSTALL_SBINDIR})
 
-if(${WEBOS_TARGET_MACHINE_IMPL} STREQUAL emulator)
-	set(upstartfile files/launch/emulator/powermgr.conf)
-else()
-    if(TV_BUILD)
-	   set(upstartfile files/launch/emulator/powermgr.conf)
-	else()
-	   set(upstartfile files/launch/device/powermgr.conf)
-	endif()
-endif()
-
-webos_build_daemon(NAME powermgr LAUNCH ${upstartfile})
+webos_build_daemon()
 webos_build_system_bus_files()
 
-if(NOT TV_BUILD)
-  add_subdirectory(libpowerd)
-endif()
+add_subdirectory(libpowerd)
 
 #unit test for power manager service(powermgr)
 #for gtest framework

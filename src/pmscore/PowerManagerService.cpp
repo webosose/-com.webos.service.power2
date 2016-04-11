@@ -29,14 +29,9 @@ const std::string gSleepdPreferenceDir = "/var/preferences/com.palm.sleep";
 
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
 LSHandle *gSleepdLsHandle = nullptr;
-LSHandle *gDisplayLsHandle = nullptr;
-LSHandle *gPowerdLsHandle = nullptr;
-
-bool gSuspendedState = false;
-const std::string powerdServiceUri = "com.palm.power";
-
 #endif
 
+bool gSuspendedState = false;
 static const std::string uriAlarmClear("palm://com.webos.service.alarm/clear");
 static const std::string uriNotifyAlarmExpiry("palm://com.webos.service.power2/notifyAlarmExpiry");
 static const std::string uriAlarmSet("palm://com.webos.service.alarm/set");
@@ -60,23 +55,18 @@ do {                                                            \
 bool PowerManagerService::configInit(void)
 {
     GKeyFile *config_file = g_key_file_new();
-    char *config_path;
-    bool retVal;
 
-    if (config_file)
-    {
-        char config_file_path[128];
+    if (config_file) {
+        std::string configFilePath = gSleepdPreferenceDir + "/systemclock.conf";
 
-        strcpy( config_file_path , gSleepdPreferenceDir.c_str() );
-        strcat( config_file_path , "/systemclock.conf" );
-
-        config_path = g_build_filename(config_file_path , NULL);
-        retVal = g_key_file_load_from_file(config_file, config_path, G_KEY_FILE_NONE, NULL);
-        if (retVal)
-        {
-            CONFIG_GET_LONG(config_file, "systemclock", "difference_between_rtc_and_system_clock", mDifferenceBetweenRtcAndSystemClock);
+        if (!g_key_file_load_from_file(config_file, configFilePath.c_str(), G_KEY_FILE_NONE, NULL)) {
+            g_key_file_free(config_file);
+            PMSLOG_WARNING(MSGID_CONFIG_FILE_LOAD_ERR, 0, "File Missing: Time is not restored");
+            return false;
         }
-        g_free(config_path);
+
+        CONFIG_GET_LONG(config_file, "systemclock", "difference_between_rtc_and_system_clock", mDifferenceBetweenRtcAndSystemClock);
+        PMSLOG_INFO(MSGID_GENERAL, 0,"mDifferenceBetweenRtcAndSystemClock = %ld", mDifferenceBetweenRtcAndSystemClock);
         g_key_file_free(config_file);
         return true;
     }
@@ -85,21 +75,13 @@ bool PowerManagerService::configInit(void)
 
 PowerManagerService::PowerManagerService(GMainLoop *mainLoop) : LS::Handle(LS::registerService(serviceUri.c_str())),
     mLoopdata(mainLoop)
-#ifdef SLEEPD_BACKWARD_COMPATIBILITY
-    , mSleepdHandle(LS::registerService(sleepdUri.c_str()))
-#endif
-#ifndef TV_BUILD_TRUE
-    , mDisplayHandle(LS::registerService(displayUri.c_str()))
-#endif
 {
     LS_CREATE_CATEGORY_BEGIN(PowerManagerService, rootAPI)
     LS_CATEGORY_METHOD(registerClient)
-    LS_CATEGORY_METHOD(clientCancelByName)
-#ifndef TV_BUILD_TRUE
     LS_CATEGORY_METHOD(setKeepAwake)
     LS_CATEGORY_METHOD(clearKeepAwake)
     LS_CATEGORY_METHOD(notifyAlarmExpiry)
-#endif
+    LS_CATEGORY_METHOD(clientCancelByName)
     LS_CREATE_CATEGORY_END
 
     static const LSSignal pmsSignals[] = {
@@ -113,17 +95,10 @@ PowerManagerService::PowerManagerService(GMainLoop *mainLoop) : LS::Handle(LS::r
         this->setCategoryData("/", this);
         PMSLOG_INFO(MSGID_SHUTDOWN_DEBUG, 0, "%s, %s, root category registration is success**", __FILE__, __FUNCTION__);
     } catch (LS::Error &lunaError) {
-        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register root category");
+        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register root category: %s", lunaError.what());
     }
 
     gHandle = this->get();
-#ifdef SLEEPD_BACKWARD_COMPATIBILITY
-    gSleepdLsHandle = mSleepdHandle.get();
-#endif
-
-#ifndef TV_BUILD_TRUE
-    gDisplayLsHandle = mDisplayHandle.get();
-#endif
 }
 
 
@@ -144,38 +119,18 @@ bool PowerManagerService::init()
     mShutdownCategoryHandle = new ShutdownCategoryMethods(*this);
     mWakelocksMgr = new WakelockClientsMgrImpl();
 
-#ifndef TV_BUILD_TRUE
-    try {
-        mPowerdHandle = LS::registerService(powerdServiceUri.c_str());
-        gPowerdLsHandle = mPowerdHandle.get();
-        mIsPowerdRegistered = true;
-        PMSLOG_INFO(MSGID_SHUTDOWN_DEBUG, 0, "%s, %s, powerd registration is success**", __FILE__, __FUNCTION__);
-    } catch (LS::Error &lunaError) {
-        mIsPowerdRegistered = false;
-        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register powerd ");
-    }
-#else
-    mIsPowerdRegistered = false;
-    PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register powerd ");
-#endif
-
     if (!mShutdownCategoryHandle || !mShutdownCategoryHandle->init() || !mWakelocksMgr) {
         PMSLOG_ERROR(MSGID_MEM_ALLOC_FAIL, 0, "memory allocation error");
         return false;
     }
 
-    setSubscriptionCancelCallback();
+    registerSubscriptionCancelCallback();
 
-    if (!initPmSupportInterface()) {
-        return false;
-    }
-
-#ifndef TV_BUILD_TRUE
-    if(configInit() && checkSystemClock())
+    if (!configInit() || !checkSystemClock())
     {
-        PMSLOG_DEBUG("checkSystemClockDone");
+        PMSLOG_ERROR(MSGID_TIME_RESTORE_FAIL, 0, "Time restoring on bootup failed");
     }
-#endif
+
     return true;
 }
 
@@ -183,22 +138,13 @@ bool PowerManagerService::initPmSupportInterface()
 {
     mSupportCallback.resume_cb = ::sendResumeSignal;
     mSupportCallback.suspend_cb = ::sendSuspendSignal;
+    gSleepdLsHandle = mSleepdHandle;
 
 #ifdef SLEEPD_BACKWARD_COMPATIBILITY
-
-    if (!pms_support_init2(this->get(), mDisplayHandle.get(), mSleepdHandle.get(), &mSupportCallback, this)) {
-        return false;
-    }
-
+    return (pms_support_init(this->get(), mLoopdata, &mSupportCallback, this));
 #else
-
-    if (!pms_support_init(this->get(), &mSupportCallback, this)) {
-        return false;
-    }
-
+    return (pms_support_init(this->get(), &mSupportCallback, this));
 #endif
-
-    return true;
 }
 
 void sendSuspendSignal(int type)
@@ -206,78 +152,69 @@ void sendSuspendSignal(int type)
     bool retVal = false;
     LSError lserror;
 
-#ifdef SLEEPD_BACKWARD_COMPATIBILITY
-    LSErrorInit(&lserror);
     gSuspendedState = true;
+    LSErrorInit(&lserror);
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
     retVal = LSSignalSend(gSleepdLsHandle,
                           "luna://com.palm.sleep/com/palm/power/suspended",
                           "{}", &lserror);
 
     if (!retVal) {
         PMSLOG_ERROR(MSGID_SUSPEND_SIG_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message), "could not send suspend signal(sleepd)");
+        LSErrorFree(&lserror);
     }
 
-    LSErrorFree(&lserror);
 #endif
-    LSErrorInit(&lserror);
     retVal = LSSignalSend(gHandle,
                           "luna://com.webos.service.power2/suspend",
                           "{}", &lserror);
 
     if (!retVal) {
         PMSLOG_ERROR(MSGID_SUSPEND_SIG_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message), "could not send suspend signal");
+        LSErrorFree(&lserror);
     }
 
-    LSErrorFree(&lserror);
     PMSLOG_DEBUG("sendSuspendSignal");
 }
 
 void sendResumeSignal(int resumeType)
 {
     bool retVal = false;
+    pbnjson::JValue responseObj = pbnjson::Object();
+    std::string payload;
     PMSLOG_DEBUG("sendResumeSignal--> resumeType = %d", resumeType);
     LSError lserror;
-    char *payload = g_strdup_printf(
-                        "{\"resumetype\":%d}", resumeType);
 
-    if (!payload) {
-        PMSLOG_ERROR(MSGID_MEM_ALLOC_FAIL, 0, "memory allocation error");
-        return;
-    }
+    responseObj.put("resumetype", resumeType);
+    LSUtils::generatePayload(responseObj, payload);
 
-#ifdef SLEEPD_BACKWARD_COMPATIBILITY
-    LSErrorInit(&lserror);
     gSuspendedState = false;
+    LSErrorInit(&lserror);
+#ifdef SLEEPD_BACKWARD_COMPATIBILITY
     retVal = LSSignalSend(gSleepdLsHandle,
                           "luna://com.palm.sleep/com/palm/power/resume",
-                          payload, &lserror);
+                          payload.c_str(), &lserror);
 
     if (!retVal) {
         PMSLOG_ERROR(MSGID_RESUME_SIG_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message), "could not send resume signal(sleepd)");
+        LSErrorFree(&lserror);
     }
 
-    LSErrorFree(&lserror);
 #endif
     retVal = LSSignalSend(gHandle,
                           "luna://com.webos.service.power2/resume",
-                          payload, &lserror);
-
-    LSErrorInit(&lserror);
+                          payload.c_str(), &lserror);
 
     if (!retVal) {
         PMSLOG_ERROR(MSGID_RESUME_SIG_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message), "could not send resume signal");
+        LSErrorFree(&lserror);
     }
-
-    LSErrorFree(&lserror);
-    g_free(payload);
 }
 
-#ifdef SLEEPD_BACKWARD_COMPATIBILITY
 bool PowerManagerService::isSuspendedState()
 {
     return gSuspendedState;
 }
-#endif
 
 /**
 @brief keep the device awake for specified number of seconds.
@@ -366,7 +303,7 @@ bool PowerManagerService::setAwake(int timeout, LS::Message &request, std::strin
         return false;
     }
 
-    if(timeout > 0 ) {
+    if (timeout > 0 ) {
         //set the alarm. clientId will be used as key
         if (setAlarm(clientId, timeout)) {
             mWakelocksMgr->setWakelock(clientId, timeout);
@@ -628,7 +565,7 @@ void PowerManagerService::addSubscription(LSMessage &message)
     }
 }
 
-void PowerManagerService::setSubscriptionCancelCallback()
+void PowerManagerService::registerSubscriptionCancelCallback()
 {
     bool retVal = false;
     LSError lserror;
@@ -640,81 +577,9 @@ void PowerManagerService::setSubscriptionCancelCallback()
     if (!retVal) {
         PMSLOG_ERROR(MSGID_LS_SUBSCRIB_SETFUN_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message),
                      "Error in setting subscription cancel function");
-    }
-
-    LSErrorFree(&lserror);
-
-#ifdef SLEEPD_BACKWARD_COMPATIBILITY
-    LSErrorInit(&lserror);
-
-    retVal = LSSubscriptionSetCancelFunction(mSleepdHandle.get(),
-             clientSubscriptionCancel, this, &lserror);
-
-    if (!retVal) {
-        PMSLOG_ERROR(MSGID_LS_SUBSCRIB_SETFUN_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message),
-                     "Error in setting subscription cancel function");
-    }
-
-#ifndef TV_BUILD_TRUE
-    retVal = LSSubscriptionSetCancelFunction(mDisplayHandle.get(),
-             cancelSubscription, this, &lserror);
-
-    if (!retVal) {
-        PMSLOG_ERROR(MSGID_LS_SUBSCRIB_SETFUN_FAIL, 1, PMLOGKS(ERRTEXT, lserror.message),
-                     "Error in setting Display subscription cancel function");
         LSErrorFree(&lserror);
     }
-#endif
-    LSErrorFree(&lserror);
-#endif
-
 }
-
-#ifndef TV_BUILD_TRUE
-bool PowerManagerService::cancelSubscription(LSHandle *sh, LSMessage *msg, void *ctx)
-{
-    LSError lserror;
-    LS::Message request(msg);
-    pbnjson::JValue requestObj;
-    int parseError = 0;
-    bool success = false;
-    LSErrorInit(&lserror);
-
-    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
-        PMSLOG_DEBUG("cancel subscription schema failed");
-        return true;
-    }
-
-    PMSLOG_DEBUG("pms-display subscription cancel function is called");
-
-    if (!strcmp(LSMessageGetMethod(msg), "dimModeEnable") &&
-        (!strcmp(LSMessageGetCategory(msg), "/control") || !strcmp(LSMessageGetCategory(msg), "/"))) {
-        std::string clientName = requestObj["client"].asString();
-        char *payload = g_strdup_printf("{\"client\":\"%s\"}", clientName.c_str());
-        PMSLOG_DEBUG("pms-display subscription cancel function is called %d", gDisplayLsHandle);
-        success = LSCallOneReply(gDisplayLsHandle, "palm://com.webos.service.power2/wearable/dimModeDisable", payload,
-                                 PowerManagerService::dimModeDisableCallback,
-                                 NULL, NULL, &lserror);
-
-        if (!success) {
-            PMSLOG_DEBUG("cancelSubscription failed");
-        }
-
-        if (payload) {
-            g_free(payload);
-        }
-    }
-
-    LSErrorFree(&lserror);
-    return true;
-}
-
-bool PowerManagerService::dimModeDisableCallback(LSHandle *sh, LSMessage *message, void *ctx)
-{
-    PMSLOG_DEBUG("%s", __FUNCTION__);
-    return true;
-}
-#endif
 
 bool PowerManagerService::clientSubscriptionCancel(LSHandle *sh, LSMessage *msg, void *ctx)
 {
@@ -723,17 +588,15 @@ bool PowerManagerService::clientSubscriptionCancel(LSHandle *sh, LSMessage *msg,
     std::string clientId = LSMessageGetUniqueToken(msg);
     PMSLOG_DEBUG("subscription cancel deregisterClient[%s]",LSMessageGetMethod(msg));
     ptrHandle->deregisterClient(msg,clientId);
-#ifndef TV_BUILD_TRUE
-    cancelSubscription(sh, msg, ctx);
-#endif
     return true;
 }
 
 void PowerManagerService::deregisterClient(LSMessage *msg, const std::string &clientId)
 {
+    PMSLOG_DEBUG("%s", __FUNCTION__);
     mShutdownCategoryHandle->deregisterAppsServicesClient(clientId);
 
-    if(strcmp(LSMessageGetMethod(msg), "activityStart"))
+    if (strcmp(LSMessageGetMethod(msg), "activityStart"))
        mWakelocksMgr->removeClient(clientId);
 }
 
@@ -741,24 +604,6 @@ ShutdownCategoryMethods &PowerManagerService::getShutdownCategoryHandle()
 {
     return *mShutdownCategoryHandle;
 }
-
-#ifdef SLEEPD_BACKWARD_COMPATIBILITY
-LS::Handle &PowerManagerService::getSleepdLsHandle()
-{
-    return mSleepdHandle;
-}
-
-LS::Handle &PowerManagerService::getPowerdLsHandle()
-{
-    return mPowerdHandle;
-}
-
-LS::Handle &PowerManagerService::getDisplayLsHandle()
-{
-    return mDisplayHandle;
-}
-
-
 
 bool PowerManagerService::clientCancelByName(LSMessage &message)
 {
@@ -788,7 +633,6 @@ bool PowerManagerService::isClientRegistered(const std::string &clientId)
 {
     return mWakelocksMgr->isClientExist(clientId);
 }
-#endif
 
 bool PowerManagerService::checkSystemClock(void)
 {
@@ -798,7 +642,6 @@ bool PowerManagerService::checkSystemClock(void)
     struct tm tm_time;
 
     LSError lserror;
-    char payload[128];
     nyx_device_handle_t nyxSystem = NULL;
 
     if (mDifferenceBetweenRtcAndSystemClock == 0 ) {
@@ -831,23 +674,34 @@ bool PowerManagerService::checkSystemClock(void)
     PMSLOG_DEBUG("[PMS] %s( ... ) , Backup System Time  = [ %04d/%02d/%02d , %02d:%02d:%02d ]\n\n" , __FUNCTION__ , tm_time.tm_year+1900 , tm_time.tm_mon+1 , tm_time.tm_mday , tm_time.tm_hour , tm_time.tm_min , tm_time.tm_sec);
 
     if ( wall_time_now != backup_system_clock ) {
-        LSErrorInit(&lserror);
-        sprintf( payload , "{\"useNetworkTime\":false}" );
-        LSCall(gHandle, "luna://com.palm.systemservice/setPreferences", payload, setSystemTimeCallback, NULL, NULL, &lserror);
-
-        if (LSErrorIsSet(&lserror))
         {
-            LSErrorFree(&lserror);
+            pbnjson::JValue responseObj = pbnjson::Object();
+            std::string payload;
+            LSErrorInit(&lserror);
+            responseObj.put("useNetworkTime", false);
+            LSUtils::generatePayload(responseObj, payload);
+            LSCall(gHandle, "luna://com.palm.systemservice/setPreferences", payload.c_str(), setSystemTimeCallback, NULL, NULL, &lserror);
+
+            if (LSErrorIsSet(&lserror))
+            {
+                LSErrorPrint(&lserror, stderr);
+                LSErrorFree(&lserror);
+            }
         }
-
         // Change system time
-        LSErrorInit(&lserror);
-        sprintf( payload , "{\"utc\": %ld }" , backup_system_clock );
-        LSCall(gHandle, "luna://com.palm.systemservice/time/setSystemTime", payload, setSystemTimeCallback, NULL, NULL, &lserror);
-
-        if (LSErrorIsSet(&lserror))
         {
-            LSErrorFree(&lserror);
+            pbnjson::JValue responseObj = pbnjson::Object();
+            std::string payload;
+            LSErrorInit(&lserror);
+            responseObj.put("utc", (int64_t)backup_system_clock);
+            LSUtils::generatePayload(responseObj, payload);
+            LSCall(gHandle, "luna://com.palm.systemservice/time/setSystemTime", payload.c_str(), setSystemTimeCallback, NULL, NULL, &lserror);
+
+            if (LSErrorIsSet(&lserror))
+            {
+                LSErrorPrint(&lserror, stderr);
+                LSErrorFree(&lserror);
+            }
         }
     }
 
@@ -860,4 +714,3 @@ bool PowerManagerService::setSystemTimeCallback(LSHandle *sh, LSMessage *message
     PMSLOG_DEBUG("%s", __FUNCTION__);
     return true;
 }
-

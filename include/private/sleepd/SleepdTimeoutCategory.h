@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2015-2016 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -20,7 +20,7 @@ class SleepdTimeoutCategory
     public:
         SleepdTimeoutCategory(LS::Handle &refSleepdLsHandle, LS::Handle &refPowerdLsHandle);
         ~SleepdTimeoutCategory() = default;
-        bool init(bool isPowerdUp);
+        bool init();
 
         bool set(LSMessage &message);
         bool clear(LSMessage &message);

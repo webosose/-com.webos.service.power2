@@ -46,19 +46,23 @@ SleepdPowerCategory::SleepdPowerCategory(PowerManagerService &refHandle, LS::Han
 {
 }
 
-bool SleepdPowerCategory::init(bool isPowerdUp)
+bool SleepdPowerCategory::init()
 {
     LS_CREATE_CATEGORY_BEGIN(SleepdPowerCategory, powerCategoryAPI)
     LS_CATEGORY_METHOD(identify)
+    LS_CATEGORY_METHOD(wakeLockRegister)
+    LS_CATEGORY_METHOD(setWakeLock)
     LS_CATEGORY_METHOD(clientCancelByName)
     LS_CATEGORY_METHOD(activityStart)
     LS_CATEGORY_METHOD(activityEnd)
-#ifndef TV_BUILD_TRUE
     LS_CATEGORY_METHOD(somebodyWantsWakeup)
     LS_CATEGORY_METHOD(systemTimeChanged)
-    LS_CATEGORY_METHOD(wakeLockRegister)
-    LS_CATEGORY_METHOD(setWakeLock)
-#endif
+    LS_CATEGORY_METHOD(suspendRequestAck)
+    LS_CATEGORY_METHOD(suspendRequestRegister)
+    LS_CATEGORY_METHOD(prepareSuspendRegister)
+    LS_CATEGORY_METHOD(prepareSuspendAck)
+    LS_CATEGORY_METHOD(forceSuspend)
+    LS_CATEGORY_METHOD(TESTSuspend)
     LS_CREATE_CATEGORY_END
 
     static LSSignal powerCategorySignals[] = {
@@ -75,13 +79,11 @@ bool SleepdPowerCategory::init(bool isPowerdUp)
                     __FILE__,
                     __FUNCTION__);
     } catch (LS::Error &lunaError) {
-        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register sleepdsupport /com/palm/power category");
+        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register sleepdsupport /com/palm/power category: %s", lunaError.what());
         return false;
     }
 
-    if (isPowerdUp) {
-        registerPowerdMethods(mRefPowerdLsHandle);
-    }
+    registerPowerdMethods(mRefPowerdLsHandle);
 
     return true;
 }
@@ -119,6 +121,19 @@ void SleepdPowerCategory::registerPowerdMethods(LS::Handle &powerdLsHandle)
     LS_CATEGORY_METHOD(systemTimeChanged)
     LS_CREATE_CATEGORY_END
 
+    LS_CREATE_CATEGORY_BEGIN(SleepdPowerCategory, powerdSuspendAPI)
+    LS_CATEGORY_METHOD(identify)
+    LS_CATEGORY_METHOD(clientCancelByName)
+    LS_CATEGORY_METHOD(activityStart)
+    LS_CATEGORY_METHOD(activityEnd)
+    LS_CATEGORY_METHOD(suspendRequestAck)
+    LS_CATEGORY_METHOD(suspendRequestRegister)
+    LS_CATEGORY_METHOD(prepareSuspendRegister)
+    LS_CATEGORY_METHOD(prepareSuspendAck)
+    LS_CATEGORY_METHOD(forceSuspend)
+    LS_CATEGORY_METHOD(TESTSuspend)
+    LS_CREATE_CATEGORY_END
+
     try {
         powerdLsHandle.registerCategoryAppend("/com/palm/power", const_cast<LSMethod *>(LS_CATEGORY_TABLE_NAME(powerdAPI)),
                                               powerdSignals);
@@ -129,8 +144,21 @@ void SleepdPowerCategory::registerPowerdMethods(LS::Handle &powerdLsHandle)
         gPowerdHandle = powerdLsHandle.get();
         checkBatterydStatus();
     } catch (LS::Error &lunaError) {
-        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register powerd /com/palm/power category");
+        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register powerd /com/palm/power category: %s", lunaError.what());
     }
+
+    try {
+        powerdLsHandle.registerCategoryAppend("/suspend", const_cast<LSMethod *>(LS_CATEGORY_TABLE_NAME(powerdSuspendAPI)),
+                                                 powerdSignals);
+        powerdLsHandle.setCategoryData("/suspend", this);
+        PMSLOG_INFO(MSGID_SHUTDOWN_DEBUG, 0, "%s, %s, powerd /suspend category registration is success**", __FILE__,
+                    __FUNCTION__);
+        PMSLOG_DEBUG("powerd suspend category registration is success**");
+        gPowerdHandle = powerdLsHandle.get();
+    } catch (LS::Error &lunaError) {
+        PMSLOG_ERROR(MSGID_CATEGORY_REG_FAIL, 0, "could not register powerd /suspend category: %s", lunaError.what());
+    }
+
 }
 
 
@@ -246,6 +274,7 @@ bool SleepdPowerCategory::batteryStatusQuerySignal(LSHandle *sh, LSMessage *mess
         retVal = LSSignalSend(gPowerdHandle, "luna://com.palm.power/com/palm/power/batteryStatus", payload.c_str(), &lserror);
 
         if (!retVal) {
+            LSErrorPrint(&lserror, stderr);
             LSErrorFree(&lserror);
         }
 
@@ -253,6 +282,7 @@ bool SleepdPowerCategory::batteryStatusQuerySignal(LSHandle *sh, LSMessage *mess
                               &lserror);
 
         if (!retVal) {
+            LSErrorPrint(&lserror, stderr);
             LSErrorFree(&lserror);
         }
     }
@@ -288,6 +318,7 @@ bool SleepdPowerCategory::chargerConnected(LSHandle *sh, LSMessage *message, voi
                               &lserror);
 
         if (!retVal) {
+            LSErrorPrint(&lserror, stderr);
             LSErrorFree(&lserror);
         }
     }
@@ -344,12 +375,14 @@ bool SleepdPowerCategory::chargerStatusQuerySignal(LSHandle *sh, LSMessage *mess
                               &lserror);
 
         if (!retVal) {
+            LSErrorPrint(&lserror, stderr);
             LSErrorFree(&lserror);
         }
 
         retVal = LSSignalSend(gPowerdHandle, "luna://com.palm.power/com/palm/power/chargerStatus", payload.c_str(), &lserror);
 
         if (!retVal) {
+            LSErrorPrint(&lserror, stderr);
             LSErrorFree(&lserror);
         }
 
@@ -357,6 +390,7 @@ bool SleepdPowerCategory::chargerStatusQuerySignal(LSHandle *sh, LSMessage *mess
                               &lserror);
 
         if (!retVal) {
+            LSErrorPrint(&lserror, stderr);
             LSErrorFree(&lserror);
         }
 
@@ -382,7 +416,8 @@ bool SleepdPowerCategory::battchargingStatusQuery(LSMessage &message)
 {
     char str_buf[STR_BUF_MAX];
     char str_buf2[STR_BUF_MAX];
-    char *payload;
+    std::string payload;
+    pbnjson::JValue responseObj = pbnjson::Object();
     int rv;
 
     if ((rv = readLineFromFile(chargingStatusPath.c_str(), str_buf, STR_BUF_MAX)) > 0) {
@@ -397,23 +432,24 @@ bool SleepdPowerCategory::battchargingStatusQuery(LSMessage &message)
         strcpy(str_buf2, "ReadFail");
     }
 
-    payload = g_strdup_printf("{\"ChargingStatus\":\"%s\",\"OTPevent\":%s,\"returnValue\":true}",
-                              str_buf, str_buf2);
+    responseObj.put("ChargingStatus", str_buf);
+    responseObj.put("OTPevent", atoi(str_buf2));
 
-    if (!payload) {
-        return true;
-    }
+    if (!strcmp(str_buf, "ReadFail") || !strcmp(str_buf2, "ReadFail"))
+        responseObj.put("returnValue", false);
+    else
+        responseObj.put("returnValue", true);
+
+    generatePayload(responseObj, payload);
 
     LSError lserror;
     LSErrorInit(&lserror);
-    bool retVal = LSMessageReply(mRefPowerdLsHandle.get(), &message, payload, &lserror);
+    bool retVal = LSMessageReply(mRefPowerdLsHandle.get(), &message, payload.c_str(), &lserror);
 
     if (!retVal) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
     }
-
-    g_free(payload);
 
     return retVal;
 }
@@ -464,7 +500,7 @@ bool SleepdPowerCategory::batteryStatusQuery(LSMessage &message)
                                   , (void *)(&message), NULL, &lserror);
 
     if (!success) {
-        PMSLOG_DEBUG(MSGID_LSSUBSCRI_ADD_FAIL, 1, "LSCallOneReply failed");
+        LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
         responseObj.put("returnValue", false);
         LSUtils::postToClient(request, responseObj);
@@ -496,7 +532,7 @@ bool SleepdPowerCategory::chargerStatusQuery(LSMessage &message)
                                   , (void *)(&message), NULL, &lserror);
 
     if (!success) {
-        PMSLOG_DEBUG(MSGID_LSSUBSCRI_ADD_FAIL, 1, "LSCallOneReply failed");
+        LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
         responseObj.put("returnValue", false);
         LSUtils::postToClient(request, responseObj);
@@ -523,11 +559,11 @@ bool SleepdPowerCategory::getFakeBatteryMode(LSMessage &message)
     LSMessageRef(&message);
 
     bool success = LSCallOneReply(gPowerdHandle, "palm://com.webos.service.battery/getFakeBatteryMode", "{}",
-                                  SleepdPowerCategory::getFakeBatteryModeCallback
+                                  SleepdPowerCategory::fakeBatteryModeCallback
                                   , (void *)(&message), NULL, &lserror);
 
     if (!success) {
-        PMSLOG_DEBUG(MSGID_LSSUBSCRI_ADD_FAIL, 1, "LSCallOneReply failed");
+        LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
         responseObj.put("returnValue", false);
         LSUtils::postToClient(request, responseObj);
@@ -545,23 +581,43 @@ bool SleepdPowerCategory::setFakeBatteryMode(LSMessage &message)
     int parseError = 0;
     LSError lserror;
 
-    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
-        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "identify schema validation failed");
+    const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(enable, string))REQUIRED_1(enable));
+
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "setFakeBatteryMode schema validation failed");
         LSUtils::respondWithError(request, errorParseFailed, 0);
+        return true;
+    }
+
+    std::string enable;
+    enable = requestObj["enable"].asString();
+    std::string payload;
+    pbnjson::JValue payloadObj = pbnjson::Object();
+
+    if (!strcmp(enable.c_str(), "1")) {
+        payloadObj.put("enable", true);
+        generatePayload(payloadObj, payload);
+    }
+    else if (!strcmp(enable.c_str(), "0")) {
+        payloadObj.put("enable", false);
+        generatePayload(payloadObj, payload);
+    } else {
+        PMSLOG_ERROR(MSGID_INVALID_INPUT, 0, "Invalid values to setfakebattery mode passed");
+        responseObj.put("returnValue", false);
+        LSUtils::postToClient(request, responseObj);
         return true;
     }
 
     LSMessageRef(&message);
     bool success = LSCallOneReply(gPowerdHandle, "palm://com.webos.service.battery/setFakeBatteryMode",
-                                  LSMessageGetPayload(&message), SleepdPowerCategory::setFakeBatteryModeCallback
+                                  payload.c_str(), SleepdPowerCategory::fakeBatteryModeCallback
                                   , (void *)(&message), NULL, &lserror);
 
     if (!success) {
-        PMSLOG_DEBUG(MSGID_LSSUBSCRI_ADD_FAIL, 1, "LSCallOneReply failed");
+        LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
         responseObj.put("returnValue", false);
         LSUtils::postToClient(request, responseObj);
-        return true;
     }
 
     return true;
@@ -574,8 +630,10 @@ bool SleepdPowerCategory::suspendRequestRegister(LSMessage &message)
     pbnjson::JValue requestObj;
     int parseError = 0;
 
+    const std::string schema = STRICT_SCHEMA(PROPS_2(PROP(clientId, string), PROP(register,
+                               boolean))REQUIRED_2(clientId, register));
 
-    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
         PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "suspendRequestRegister schema validation failed");
         LSUtils::respondWithError(request, errorParseFailed, 0);
         return true;
@@ -583,6 +641,7 @@ bool SleepdPowerCategory::suspendRequestRegister(LSMessage &message)
 
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
@@ -593,8 +652,10 @@ bool SleepdPowerCategory::prepareSuspendRegister(LSMessage &message)
     pbnjson::JValue requestObj;
     int parseError = 0;
 
+    const std::string schema = STRICT_SCHEMA(PROPS_2(PROP(clientId, string), PROP(register,
+                               boolean))REQUIRED_2(clientId, register));
 
-    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
         PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "prepareSuspendRegister schema validation failed");
         LSUtils::respondWithError(request, errorParseFailed, 0);
         return true;
@@ -602,6 +663,7 @@ bool SleepdPowerCategory::prepareSuspendRegister(LSMessage &message)
 
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
@@ -612,8 +674,10 @@ bool SleepdPowerCategory::suspendRequestAck(LSMessage &message)
     pbnjson::JValue requestObj;
     int parseError = 0;
 
+    const std::string schema = STRICT_SCHEMA(PROPS_2(PROP(clientId, string), PROP(ack,
+                               boolean))REQUIRED_2(clientId, ack));
 
-    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
         PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "suspendRequestAck schema validation failed");
         LSUtils::respondWithError(request, errorParseFailed, 0);
         return true;
@@ -621,6 +685,7 @@ bool SleepdPowerCategory::suspendRequestAck(LSMessage &message)
 
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
@@ -631,8 +696,10 @@ bool SleepdPowerCategory::prepareSuspendAck(LSMessage &message)
     pbnjson::JValue requestObj;
     int parseError = 0;
 
+    const std::string schema = STRICT_SCHEMA(PROPS_2(PROP(clientId, string), PROP(ack,
+                               boolean))REQUIRED_2(clientId, ack));
 
-    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
         PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "prepareSuspendAck schema validation failed");
         LSUtils::respondWithError(request, errorParseFailed, 0);
         return true;
@@ -640,6 +707,7 @@ bool SleepdPowerCategory::prepareSuspendAck(LSMessage &message)
 
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
@@ -650,15 +718,17 @@ bool SleepdPowerCategory::batterySaverOnOff(LSMessage &message)
     pbnjson::JValue requestObj;
     int parseError = 0;
 
+    const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(isOn, boolean))REQUIRED_1(isOn));
 
-    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
-        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "identify schema validation failed");
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "batterySaverOnOff schema validation failed");
         LSUtils::respondWithError(request, errorParseFailed, 0);
         return true;
     }
 
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
@@ -791,6 +861,7 @@ bool SleepdPowerCategory::activityEnd(LSMessage &message)
 
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
@@ -819,6 +890,7 @@ bool SleepdPowerCategory::somebodyWantsWakeup(LSMessage &message)
 
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
@@ -844,7 +916,7 @@ bool SleepdPowerCategory::systemTimeChanged(LSMessage &message)
                                   NULL, NULL, &lserror);
 
     if (!success) {
-        PMSLOG_DEBUG(MSGID_LSSUBSCRI_ADD_FAIL, 1, "LSCallOneReply failed");
+        LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
         responseObj.put("returnValue", false);
         LSUtils::postToClient(request, responseObj);
@@ -853,12 +925,14 @@ bool SleepdPowerCategory::systemTimeChanged(LSMessage &message)
 
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
 bool SleepdPowerCategory::systemTimeChangedCallback(LSHandle *sh, LSMessage *message, void *ctx)
 {
     PMSLOG_DEBUG("%s", __FUNCTION__);
+
     return true;
 }
 
@@ -899,6 +973,7 @@ bool SleepdPowerCategory::wakeLockRegister(LSMessage &message)
     pbnjson::JValue responseObj = pbnjson::Object();
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
@@ -964,45 +1039,8 @@ bool SleepdPowerCategory::clientCancelByName(LSMessage &message)
     return mRefPms.clientCancelByName(message);
 }
 
-bool SleepdPowerCategory::getFakeBatteryModeCallback(LSHandle *sh, LSMessage *message, void *ctx)
-{
-    bool retVal;
-    LS::Message request(message);
-    pbnjson::JValue requestObj;
-    int parseError = 0;
-
-    LSMessage *replyMessage = (LSMessage *)ctx;
-
-    if (replyMessage && LSMessageGetConnection(replyMessage)) {
-        bool ret = LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError);
-
-        if (ret) {
-            bool FakeBatteryModeVal = requestObj["FakeBatteryMode"].asBool();
-            char *payload = g_strdup_printf("{\"FakeBatteryMode\":%s, \"returnValue\": true}", FakeBatteryModeVal ? "true" : "false");
-
-            retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload, NULL);
-
-            if (!retVal) {
-                PMSLOG_DEBUG("Could not send reply");
-            }
-
-            LSMessageUnref(replyMessage);
-            g_free(payload);
-        }
-    } else {
-        PMSLOG_DEBUG("reply message is null");
-        char *payload = g_strdup_printf("{\"returnValue\": false}");
-        retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload, NULL);
-        LSMessageUnref(replyMessage);
-        g_free(payload);
-    }
-
-    return true;
-}
-
 bool SleepdPowerCategory::chargerStatusCallback(LSHandle *sh, LSMessage *message, void *ctx)
 {
-    bool retVal;
     LS::Message request(message);
     pbnjson::JValue requestObj;
     int parseError = 0;
@@ -1019,6 +1057,7 @@ bool SleepdPowerCategory::chargerStatusCallback(LSHandle *sh, LSMessage *message
         }
 
         std::string payload;
+
         responseObj.put("DockConnected", false);
         responseObj.put("DockPower", false);
         responseObj.put("DockSerialNo", "NULL");
@@ -1035,10 +1074,13 @@ bool SleepdPowerCategory::chargerStatusCallback(LSHandle *sh, LSMessage *message
         responseObj.put("returnValue", true);
         generatePayload(responseObj, payload);
 
-        retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload.c_str(), NULL);
+        LSError lserror;
+        LSErrorInit(&lserror);
 
-        if (!retVal) {
-            PMSLOG_DEBUG("Could not send reply");
+        if (!LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload.c_str(), &lserror)) {
+            PMSLOG_WARNING(MSGID_GENERAL, 0, "chargerStatusCallback could not send reply");
+            LSErrorPrint(&lserror, stderr);
+            LSErrorFree(&lserror);
         }
 
         LSMessageUnref(replyMessage);
@@ -1050,12 +1092,14 @@ bool SleepdPowerCategory::chargerStatusCallback(LSHandle *sh, LSMessage *message
     return true;
 }
 
-bool SleepdPowerCategory::setFakeBatteryModeCallback(LSHandle *sh, LSMessage *message, void *ctx)
+bool SleepdPowerCategory::fakeBatteryModeCallback(LSHandle *sh, LSMessage *message, void *ctx)
 {
-    bool retVal;
     LS::Message request(message);
     pbnjson::JValue requestObj;
+    pbnjson::JValue responseObj = pbnjson::Object();
     int parseError = 0;
+    LSError lserror;
+    LSErrorInit(&lserror);
 
     LSMessage *replyMessage = (LSMessage *)ctx;
 
@@ -1063,24 +1107,33 @@ bool SleepdPowerCategory::setFakeBatteryModeCallback(LSHandle *sh, LSMessage *me
         bool ret = LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError);
 
         if (ret) {
-            bool FakeBatteryModeVal = requestObj["FakeBatteryMode"].asBool();
-            char *payload = g_strdup_printf("{\"FakeBatteryMode\":%s, \"returnValue\": true}", FakeBatteryModeVal ? "true" : "false");
+            responseObj.put("FakeBatteryMode", requestObj["FakeBatteryMode"].asBool());
+            responseObj.put("returnValue", true);
 
-            retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload, NULL);
+            std::string payload;
+            generatePayload(responseObj, payload);
 
-            if (!retVal) {
-                PMSLOG_DEBUG("Could not send reply");
+            if (!LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload.c_str(), &lserror)) {
+                PMSLOG_WARNING(MSGID_GENERAL, 0, "FakeBatteryModeCallback could not send reply");
+                LSErrorPrint(&lserror, stderr);
+                LSErrorFree(&lserror);
             }
 
             LSMessageUnref(replyMessage);
-            g_free(payload);
         }
     } else {
-        PMSLOG_DEBUG("reply message is null");
-        char *payload = g_strdup_printf("{\"returnValue\": false}");
-        retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload, NULL);
+        responseObj.put("returnValue", false);
+
+        std::string payload;
+        generatePayload(responseObj, payload);
+
+        if (!LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload.c_str(), &lserror)) {
+                PMSLOG_WARNING(MSGID_GENERAL, 0, "setFakeBatteryModeCallback could not send reply");
+                LSErrorPrint(&lserror, stderr);
+                LSErrorFree(&lserror);
+        }
+
         LSMessageUnref(replyMessage);
-        g_free(payload);
     }
 
     return true;
@@ -1088,7 +1141,6 @@ bool SleepdPowerCategory::setFakeBatteryModeCallback(LSHandle *sh, LSMessage *me
 
 bool SleepdPowerCategory::batteryStatusCallback(LSHandle *sh, LSMessage *message, void *userData)
 {
-    bool retVal;
     LS::Message request(message);
     LSMessage *replyMessage = (LSMessage *)userData;
     pbnjson::JValue requestObj;
@@ -1110,7 +1162,7 @@ bool SleepdPowerCategory::batteryStatusCallback(LSHandle *sh, LSMessage *message
     responseObj.put("capacity_mAh", (requestObj["capacity_mAh"].asNumber<double>()));
     responseObj.put("health", true);
 
-    if(gIsChargerPresent) {
+    if (gIsChargerPresent) {
         responseObj.put("charging", true);
     } else {
         responseObj.put("charging", false);
@@ -1120,19 +1172,61 @@ bool SleepdPowerCategory::batteryStatusCallback(LSHandle *sh, LSMessage *message
 
     std::string payload;
     generatePayload(responseObj, payload);
+    LSError lserror;
+    LSErrorInit(&lserror);
 
     if (replyMessage && LSMessageGetConnection(replyMessage)) {
-        retVal = LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload.c_str(), NULL);
-
-        if (!retVal) {
-            PMSLOG_DEBUG("Could not send reply");
+        if (!LSMessageReply(LSMessageGetConnection(replyMessage), replyMessage, payload.c_str(), &lserror)) {
+            PMSLOG_WARNING(MSGID_GENERAL, 0, "batteryStatusCallback could not send reply");
+            LSErrorPrint(&lserror, stderr);
+            LSErrorFree(&lserror);
         }
 
         LSMessageUnref(replyMessage);
     } else {
-        PMSLOG_DEBUG("Could not send reply");
+        PMSLOG_WARNING(MSGID_GENERAL, 0, "batteryStatusCallback could not send reply");
         LSMessageUnref(replyMessage);
     }
+
+    return true;
+}
+
+bool SleepdPowerCategory::forceSuspend(LSMessage &message)
+{
+    LS::Message request(&message);
+    pbnjson::JValue responseObj = pbnjson::Object();
+    pbnjson::JValue requestObj;
+    int parseError = 0;
+
+
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "prepareSuspendRegister schema validation failed");
+        LSUtils::respondWithError(request, errorParseFailed, 0);
+        return true;
+    }
+
+    responseObj.put("returnValue", true);
+    LSUtils::postToClient(request, responseObj);
+
+    return true;
+}
+
+bool SleepdPowerCategory::TESTSuspend(LSMessage &message)
+{
+    LS::Message request(&message);
+    pbnjson::JValue responseObj = pbnjson::Object();
+    pbnjson::JValue requestObj;
+    int parseError = 0;
+
+
+    if (!LSUtils::parsePayload(request.getPayload(), requestObj, SCHEMA_ANY, &parseError)) {
+        PMSLOG_ERROR(MSGID_SCEMA_VAL_FAIL, 0, "prepareSuspendRegister schema validation failed");
+        LSUtils::respondWithError(request, errorParseFailed, 0);
+        return true;
+    }
+
+    responseObj.put("returnValue", true);
+    LSUtils::postToClient(request, responseObj);
 
     return true;
 }

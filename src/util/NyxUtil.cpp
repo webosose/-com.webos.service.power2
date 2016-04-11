@@ -14,6 +14,14 @@
 #include "NyxUtil.h"
 #include "PmsLogging.h"
 
+//As "nyx_system_reboot_type_t" is not defined in master branch, will replace this when
+//nyx-lib is modified
+typedef enum systemRebootTypes{
+    SYSTEM_NORMAL_REBOOT,
+    SYSTEM_RECOVERY_WIPE_DATA_REBOOT, // for factory reset
+    SYSTEM_LAF_REBOOT,
+} systemRebootType;
+
 NyxUtil::NyxUtil()
 {
     init();
@@ -49,7 +57,6 @@ void NyxUtil::shutdown(const std::string &reason)
     PMSLOG_DEBUG("[%s] shutting down the system. reason[%s]", __FUNCTION__,
                  reason.c_str());
 
-    //TODO: fasthalt info has to be read from the configfile
     nyx_system_shutdown(mNyxDeviceHandle, NYX_SYSTEM_NORMAL_SHUTDOWN, reason.c_str());
 }
 
@@ -57,31 +64,30 @@ void NyxUtil::reboot(const std::string &reason, const std::string &params)
 {
     PMSLOG_INFO(MSGID_FRC_SHUTDOWN, 1, PMLOGKS("Reason", reason.c_str()),
                 "Pwrevents shutting down system");
-#ifndef TV_BUILD_TRUE
-    nyx_system_reboot_type_t rebootType = NYX_SYSTEM_NORMAL_REBOOT;
 
-    if (reason.empty()) {
-        if (reason == "recovery") {
+    if (!reason.empty()) {
+        systemRebootType rebootType;
+        if ("recovery" == reason) {
             // Check params
-            if (params.empty()) {
-                if (params == "wipe-data") {
-                    rebootType = NYX_SYSTEM_RECOVERY_WIPE_DATA_REBOOT;
+            if (!params.empty()) {
+                if ("wipe-data" == params) {
+                    rebootType = SYSTEM_RECOVERY_WIPE_DATA_REBOOT;
+                    nyx_system_reboot(mNyxDeviceHandle, (nyx_system_shutdown_type_t)rebootType, reason.c_str());
+                    return;
                 }
             }
-        } else if (params == "laf") {
-            rebootType = NYX_SYSTEM_LAF_REBOOT;
+        } else if ("laf" == reason) {
+            rebootType = SYSTEM_LAF_REBOOT;
+            nyx_system_reboot(mNyxDeviceHandle, (nyx_system_shutdown_type_t)rebootType, reason.c_str());
+            return;
         }
     }
 
-    //TODO: fasthalt info has to be read from the configfile
-    nyx_system_reboot(mNyxDeviceHandle, (nyx_system_shutdown_type_t)rebootType, reason.c_str());
-#else
+    //To make common to all devices, NYX_SYSTEM_EMERG_SHUTDOWN is used
     nyx_system_reboot(mNyxDeviceHandle, NYX_SYSTEM_EMERG_SHUTDOWN, reason.c_str());
-#endif
 }
 
 void NyxUtil::setRtcAlarm()
 {
     nyx_system_set_alarm(mNyxDeviceHandle, 0, nullptr, nullptr);
 }
-
