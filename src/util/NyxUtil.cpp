@@ -66,20 +66,13 @@ void NyxUtil::reboot(const std::string &reason, const std::string &params)
                 "Pwrevents shutting down system");
 
     if (!reason.empty()) {
-        systemRebootType rebootType;
-        if ("recovery" == reason) {
+        if (reason == "recovery") {
             // Check params
             if (!params.empty()) {
-                if ("wipe-data" == params) {
-                    rebootType = SYSTEM_RECOVERY_WIPE_DATA_REBOOT;
-                    nyx_system_reboot(mNyxDeviceHandle, (nyx_system_shutdown_type_t)rebootType, reason.c_str());
-                    return;
+                if (params == "wipe-data") {
+                    nyx_system_erase_partition(mNyxDeviceHandle, NYX_SYSTEM_ERASE_ALL);
                 }
             }
-        } else if ("laf" == reason) {
-            rebootType = SYSTEM_LAF_REBOOT;
-            nyx_system_reboot(mNyxDeviceHandle, (nyx_system_shutdown_type_t)rebootType, reason.c_str());
-            return;
         }
     }
 
