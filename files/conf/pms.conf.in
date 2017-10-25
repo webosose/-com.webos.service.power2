@@ -1,0 +1,17 @@
+# This is the configuration file for PMS
+
+#Configuration for PMS
+[PMS]
+#Supported ipc types in PMS
+Ipc=Luna
+
+[Luna]
+Type=LunaPMS
+
+[LunaPMS]
+ServiceName=com.webos.service.power2
+Interface=LunaInterfacePMSRoot;
+
+[LunaInterfacePMSRoot]
+LogContext=powermgr
+TimeOut=00:00:03

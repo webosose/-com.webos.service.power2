@@ -1,4 +1,4 @@
 [D-BUS Service]
-Name=com.webos.service.power2;com.palm.sleep;com.palm.display;com.palm.power
+Name=com.webos.service.power2
 Exec=@WEBOS_INSTALL_SBINDIR@/powermgr
 Type=static

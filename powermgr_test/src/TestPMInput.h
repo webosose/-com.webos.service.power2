@@ -1,5 +1,5 @@
 /********************************************************************
- * Copyright (c) 2014-2015 LG Electronics Inc. All Rights Reserved
+ * Copyright (c) 2017 LG Electronics Inc. All Rights Reserved
  *
  * Project Name   : webOS-MTP
  * Group          : CSP2

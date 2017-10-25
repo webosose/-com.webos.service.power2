@@ -95,4 +95,4 @@ Copyright and License Information
 Unless otherwise specified, all content, including all source code files and
 documentation files in this repository are:
 
-Copyright (c) 2015 LG Electronics Inc. All Rights Reserved.
+Copyright (c) 2017 LG Electronics Inc. All Rights Reserved.

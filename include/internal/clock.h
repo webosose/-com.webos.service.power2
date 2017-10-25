@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2015 LG Electronics, Inc.
+//      Copyright (c) 2017 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -10,12 +10,11 @@
 //
 // LICENSE@@@
 
-#ifndef _CLOCK_H_
-#define _CLOCK_H_
+#ifndef CLOCK_H
+#define CLOCK_H
 
 #include <stdbool.h>
 #include <time.h>
-#include <glib.h>
 
 void ClockGetTime(struct timespec *time);
 
@@ -35,4 +34,4 @@ long ClockGetMs(struct timespec *ts);
 
 void ClockClear(struct timespec *a);
 
-#endif    // _CLOCK_H_
+#endif    // CLOCK_H

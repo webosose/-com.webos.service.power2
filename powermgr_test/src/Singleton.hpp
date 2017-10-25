@@ -1,6 +1,6 @@
 /* @@@LICENSE
  *
- * Copyright (c) 2014-2015 LG Electronics, Inc.
+ * Copyright (c) 2017 LG Electronics, Inc.
  *
  * Confidential computer software. Valid license from LG required for
  * possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -11,8 +11,8 @@
  * LICENSE@@@
  */
 
-#ifndef __SINGLETON_HPP__
-#define __SINGLETON_HPP__
+#ifndef SINGLETON_HPP
+#define SINGLETON_HPP
 
 #include <stdio.h>
 #include <stdlib.h>
