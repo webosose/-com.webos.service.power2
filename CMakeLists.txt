@@ -1,6 +1,6 @@
 # @@@LICENSE
 #
-#   Copyright (c) 2015 LG Electronics Inc. All Rights Reserved
+#   Copyright (c) 2017 LG Electronics Inc. All Rights Reserved
 #
 # LICENSE@@@
 
@@ -28,7 +28,7 @@ endfunction()
 ############################################################
 
 include(webOS/webOS)
-webos_modules_init(1 0 0 QUALIFIER RC4)
+webos_modules_init(1 0 0 QUALIFIER RC7)
 webos_component(1 0 0)
 
 include(FindPkgConfig)
@@ -57,26 +57,25 @@ pkg_check_modules(PBNJSON_CPP REQUIRED pbnjson_cpp)
 include_directories(${PBNJSON_CPP_INCLUDE_DIRS})
 webos_add_compiler_flags(ALL ${PBNJSON_CPP_CFLAGS_OTHER})
 
-pkg_check_modules(PMSSUPPORTAPI REQUIRED pms-support-api)
-include_directories(${PMSSUPPORTAPI_INCLUDE_DIRS})
-
-include_directories(include/private/pmscore)
-include_directories(include/private/pmslogging)
-include_directories(include/private/shutdown)
 include_directories(include/private/util)
 include_directories(include/private/common)
-include_directories(include/private/sleepd)
-include_directories(include/public/powerd)
 include_directories(include/internal)
 
 add_definitions(-DSLEEPD_BACKWARD_COMPATIBILITY)
 add_definitions(-DENABLE_WAKELOCK_FOR_SLEEP_STATE)
 add_definitions(-DENABLE_POWEROFF_REBOOT_SIGNAL)
+add_definitions(-DGTEST_HAS_TR1_TUPLE=0)
+add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=0)
+add_definitions(-DPMS_CONF_FILE_PATH="/var/PMS/pms.conf")
+add_definitions(-DFSM_FILE_PATH="/var/PMS/rpi.fsm")
+
 file(GLOB SOURCE_FILES src/*/*.cpp)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
+set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+set(CMAKE_EXE_LINKER_FLAGS "-ldl -Wl,--no-as-needed -lrpi-pms-plugin")
 
-add_executable(powermgr ${SOURCE_FILES}
+add_executable(${CMAKE_PROJECT_NAME} ${SOURCE_FILES}
                           src/main.cpp
                           )
 
@@ -86,10 +85,11 @@ set(LIBS ${LS2_LDFLAGS}
          ${PBNJSON_CPP_LDFLAGS}
          ${NYXLIB_LDFLAGS}
          luna-service2++
-         pmssupport
-         pthread)
+         pthread
+         pmscore
+         rpi-pms-plugin)
 
-target_link_libraries(powermgr ${LIBS})
+target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBS})
 
 install(TARGETS ${CMAKE_PROJECT_NAME}
         DESTINATION sbin
@@ -99,6 +99,7 @@ install(TARGETS ${CMAKE_PROJECT_NAME}
 
 install(PROGRAMS scripts/public/suspend_action DESTINATION ${WEBOS_INSTALL_SBINDIR})
 webos_build_configured_file(files/conf/pmlog/powermgr.conf SYSCONFDIR pmlog.d)
+webos_build_configured_file(files/conf/pms.conf LOCALSTATEDIR PMS)
 
 # OYK_2013_07_09 : Add MSM suspend settings
 install(PROGRAMS scripts/public/msm_suspend DESTINATION ${WEBOS_INSTALL_SBINDIR})
@@ -115,10 +116,8 @@ install(PROGRAMS scripts/public/update_timestamp DESTINATION ${WEBOS_INSTALL_SBI
 webos_build_daemon()
 webos_build_system_bus_files()
 
-add_subdirectory(libpowerd)
-
-#unit test for power manager service(powermgr)
+#unit test for power manager service(${CMAKE_PROJECT_NAME})
 #for gtest framework
 #webos_use_gtest()
-#webos_add_test(powermgr ${LIBS})
+#webos_add_test(${CMAKE_PROJECT_NAME} ${LIBS})
 

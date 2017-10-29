@@ -1,24 +1,15 @@
 {
   "system": [
-    "com.webos.service.power2/clearKeepAwake",
-    "com.webos.service.power2/clientCancelByName",
-    "com.webos.service.power2/notifyAlarmExpiry",
-    "com.webos.service.power2/registerClient",
-    "com.webos.service.power2/setKeepAwake",
-    "com.webos.service.power2/shutdown/initiate",
-    "com.webos.service.power2/shutdown/machineOff",
-    "com.webos.service.power2/shutdown/machineReboot",
-    "com.webos.service.power2/shutdown/shutdownApplicationsAck",
-    "com.webos.service.power2/shutdown/shutdownApplicationsRegister",
-    "com.webos.service.power2/shutdown/shutdownServicesAck",
-    "com.webos.service.power2/shutdown/shutdownServicesRegister",
-    "com.webos.service.power2/wearable/ambientAlarmExpiry",
-    "com.webos.service.power2/wearable/dimModeDisable",
-    "com.webos.service.power2/wearable/dimModeEnable",
-    "com.webos.service.power2/wearable/getDisplayProperties",
-    "com.webos.service.power2/wearable/getState",
-    "com.webos.service.power2/wearable/setDisplayProperties",
-    "com.webos.service.power2/wearable/setState",
-    "com.webos.service.power2/wearable/systemTimeChanged"
+    "com.webos.service.power2/getPowerOnReason",
+    "com.webos.service.power2/shutdown",
+    "com.webos.service.power2/reboot",
+    "com.webos.service.power2/setPowerOnReason",
+    "com.webos.service.power2/getState",
+    "com.webos.service.power2/registerStateChangeRequest",
+    "com.webos.service.power2/responseStateChangeRequest",
+    "com.webos.service.power2/setState",
+    "com.webos.service.power2/aquireWakeLock",
+    "com.webos.service.power2/releaseWakeLock",
+    "com.webos.service.power2/notifyAlarmExpiry"
   ]
 }

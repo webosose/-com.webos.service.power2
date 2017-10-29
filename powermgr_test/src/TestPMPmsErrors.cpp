@@ -11,19 +11,15 @@
  * LICENSE@@@
  */
 
-#include "Singleton.hpp"
+#include <gtest/gtest.h>
+#include <pbnjson.hpp>
 
-namespace SingletonNS {
-std::list<Tracker *> _list;
-bool _atexit_registered = false;
+#include "PMSCommon.h"
+#include "NyxUtil.h"
+#include "TestUtil.h"
+#include "PmsErrors.h"
 
-void destroyAll() {
-    Tracker *pTracker = NULL;
-
-    while (!_list.empty()) {
-        pTracker = _list.back();
-        _list.pop_back();
-        delete pTracker;
-    }
-}
+TEST(TestPMPmsErrors, IsPermanentGpsError)
+{
+    PmsErrorCode_t error;
 }
