@@ -73,7 +73,7 @@ file(GLOB SOURCE_FILES src/*/*.cpp)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
 set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-set(CMAKE_EXE_LINKER_FLAGS "-ldl -Wl,--no-as-needed -lrpi-pms-plugin")
+set(CMAKE_EXE_LINKER_FLAGS "-ldl -Wl,--no-as-needed -lpms-support")
 
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCE_FILES}
                           src/main.cpp
@@ -87,7 +87,7 @@ set(LIBS ${LS2_LDFLAGS}
          luna-service2++
          pthread
          pmscore
-         rpi-pms-plugin)
+         pms-support)
 
 target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBS})
 
