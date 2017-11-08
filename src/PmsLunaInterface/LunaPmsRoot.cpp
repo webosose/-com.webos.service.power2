@@ -56,7 +56,7 @@ LSMethod LunaPmsRoot::mStateMethodsTable[] =
     { "setPowerOnReason",                LunaPmsRoot::setPowerOnReason            },
     { "setState",                        LunaPmsRoot::setState                    },
     { "notifyAlarmExpiry",               LunaPmsRoot::notifyAlarmExpiry           },
-    { "aquireWakeLock",                  LunaPmsRoot::aquireWakeLock              },
+    { "acquireWakeLock",                 LunaPmsRoot::acquireWakeLock             },
     { "releaseWakeLock",                 LunaPmsRoot::releaseWakeLock             },
     { },
 };
@@ -101,7 +101,7 @@ LunaPmsRoot::LunaPmsRoot(PmsConfig* pConfig, LSHandle *pLsHandle) :
 void LunaPmsRoot::RegisterIpc(LSHandle *pLsHandle)
 {
     PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
-    pCxt->AddLunaCategoryContext(kPmsMsgCategoryRoot, (uint32_t)this);
+    pCxt->AddLunaCategoryContext(kPmsMsgCategoryRoot, (unsigned int)this);
 
     LSError lserror;
     LSErrorInit(&lserror);
@@ -191,12 +191,12 @@ bool LunaPmsRoot::notifyAlarmExpiry(LSHandle *sh, LSMessage *message, void *data
     return pThis->notifyAlarmExpiryCb(sh, message, data);
 }
 
-bool LunaPmsRoot::aquireWakeLock(LSHandle *sh, LSMessage *message, void *data)
+bool LunaPmsRoot::acquireWakeLock(LSHandle *sh, LSMessage *message, void *data)
 {
     PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
     LunaPmsRoot *pThis = (LunaPmsRoot *)(pCxt->GetLunaCategoryContext(kPmsMsgCategoryRoot));
 
-    return pThis->aquireWakeLockCb(sh, message, data);
+    return pThis->acquireWakeLockCb(sh, message, data);
 }
 
 bool LunaPmsRoot::releaseWakeLock(LSHandle *sh, LSMessage *message, void *data)
@@ -223,7 +223,7 @@ bool LunaPmsRoot::setStateCb(LSHandle *sh, LSMessage *message, void *data)
 
     pbnjson::JValue responseObj = pbnjson::Object();
     std::string stateName = requestObj["state"].asString();
-    int inputReason = requestObj["reason"].asNumber<int32_t>();
+    int inputReason = requestObj["reason"].asNumber<int>();
 
     if (inputReason >= REASON_WAKE_ON_LAN && inputReason < MAX_REASONS)
     {
@@ -675,7 +675,7 @@ bool LunaPmsRoot::notifyAlarmExpiryCb(LSHandle *sh, LSMessage *message, void *da
     return true;
 }
 
-bool LunaPmsRoot::aquireWakeLockCb(LSHandle *sh, LSMessage *message, void *data)
+bool LunaPmsRoot::acquireWakeLockCb(LSHandle *sh, LSMessage *message, void *data)
 {
     LS::Message request(message);
     pbnjson::JValue responseObj = pbnjson::Object();
@@ -689,7 +689,7 @@ bool LunaPmsRoot::aquireWakeLockCb(LSHandle *sh, LSMessage *message, void *data)
         return true;
     }
 
-    int timeout = requestObj["timeout"].asNumber<int32_t>();
+    int timeout = requestObj["timeout"].asNumber<int>();
     std::string clientName = requestObj["clientId"].asString();
 
     if (setAwake(timeout, request, clientName,sh)) {

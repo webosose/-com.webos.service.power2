@@ -77,7 +77,7 @@ public:
     static bool getPowerOnReason(LSHandle *sh, LSMessage *message, void *data);
     static bool setPowerOnReason(LSHandle *sh, LSMessage *message, void *data);
     static bool notifyAlarmExpiry(LSHandle *sh, LSMessage *message, void *data);
-    static bool aquireWakeLock(LSHandle *sh, LSMessage *message, void *data);
+    static bool acquireWakeLock(LSHandle *sh, LSMessage *message, void *data);
     static bool releaseWakeLock(LSHandle *sh, LSMessage *message, void *data);
     //LSMethods End
 
@@ -91,7 +91,7 @@ public:
     bool getPowerOnReasonCb(LSHandle *sh, LSMessage *message, void *data);
     bool setPowerOnReasonCb(LSHandle *sh, LSMessage *message, void *data);
     bool notifyAlarmExpiryCb(LSHandle *sh, LSMessage *message, void *data);
-    bool aquireWakeLockCb(LSHandle *sh, LSMessage *message, void *data);
+    bool acquireWakeLockCb(LSHandle *sh, LSMessage *message, void *data);
     bool releaseWakeLockCb(LSHandle *sh, LSMessage *message, void *data);
 
     PmsErrorCode_t CancelSubscriptionStateChange (LSMessage* message);
