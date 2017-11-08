@@ -37,7 +37,7 @@ TEST_F(TestPMLunaInterfaceCommon, LunaInterfaceCommon_AddLunaCategoryContext)
 {
     printf("------------------ BEGIN LunaInterfaceCommon_AddLunaCategoryContext ----------------------------\n");
     PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
-    pCxt->AddLunaCategoryContext(kPmsMsgCategoryRoot, (uint32_t)this);
+    pCxt->AddLunaCategoryContext(kPmsMsgCategoryRoot, (unsigned int)this);
     printf("------------------ END LunaInterfaceCommon_AddLunaCategoryContext----------------------------\n");
 }
 

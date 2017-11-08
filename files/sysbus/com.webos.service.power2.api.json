@@ -8,7 +8,7 @@
     "com.webos.service.power2/registerStateChangeRequest",
     "com.webos.service.power2/responseStateChangeRequest",
     "com.webos.service.power2/setState",
-    "com.webos.service.power2/aquireWakeLock",
+    "com.webos.service.power2/acquireWakeLock",
     "com.webos.service.power2/releaseWakeLock",
     "com.webos.service.power2/notifyAlarmExpiry"
   ]

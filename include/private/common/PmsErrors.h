@@ -14,14 +14,14 @@
 #define PMS_ERRORS_H
 
 /**
- * @typedef uint32_t PmsErrorCode_t
- * @brief error codes are 32-bit unsigned integers.
+ * @typedef unsigned int PmsErrorCode_t
+ * @brief error codes are unsigned integers.
  *
  * see #ePmsErrCommon and other error categories.
  */
 #include <stdint.h>
 
-typedef uint32_t PmsErrorCode_t; /**< 32 bit error code */
+typedef unsigned int PmsErrorCode_t; /**< 32 bit error code */
 
 /*
  * @note Each feature implementer should use the feature base error codes to define

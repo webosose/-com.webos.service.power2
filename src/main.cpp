@@ -18,7 +18,7 @@
 
 static GMainLoop *mainLoop = nullptr;
 
-void term_handler(int32_t signum)
+void term_handler(int signum)
 {
     const char *str = nullptr;
 
