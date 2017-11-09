@@ -101,7 +101,7 @@ LunaPmsRoot::LunaPmsRoot(PmsConfig* pConfig, LSHandle *pLsHandle) :
 void LunaPmsRoot::RegisterIpc(LSHandle *pLsHandle)
 {
     PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
-    pCxt->AddLunaCategoryContext(kPmsMsgCategoryRoot, (unsigned int)this);
+    pCxt->AddLunaCategoryContext(kPmsMsgCategoryRoot, this);
 
     LSError lserror;
     LSErrorInit(&lserror);
