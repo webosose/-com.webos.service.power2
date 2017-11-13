@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2017 LG Electronics, Inc.
+//      Copyright (c) 2017-2018 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -14,15 +14,15 @@
 #define LUNA_PMS_ROOT_H
 
 #include <unordered_set>
-
 #include <glib.h>
 
 #include "pmscore/log.h"
 #include "pmscore/LunaInterfaceBase.h"
 #include "pmscore/PmsLuna2Utils.h"
-#include "pmscore/PowerStateClientsMgr.h"
 #include "pmscore/StateEventListners.h"
 #include "pmscore/StateManager.h"
+
+#include "PowerStateClientsMgr.h"
 #include "timersource.h"
 
 class LunaPmsRoot : public LunaInterfaceBase, public StateEventListners
@@ -45,12 +45,16 @@ public:
 
     virtual ~LunaPmsRoot( )
     {
-        // Stop();
-        // UnregisterIpc();
+        Stop();
+        UnregisterIpc();
+
+        delete mPowerStatesMgr;
+        mPowerStatesMgr = nullptr;
     }
 
     GTimerSource *sTimerCheck = nullptr;
 
+    PmsErrorCode_t Stop();
     //To Handle Fixed State and Transition State
     bool handleStateChange(const std::string& statename);
     bool handleTransitionState(const std::string& processing);
@@ -167,20 +171,6 @@ private:
 
     std::string mSessionToken;
     std::unordered_set<std::string> capturedReplies; // Two ways to check No registered client reply twice.
-};
-
-class PmsPendingMessages
-{
-public:
-    static PmsPendingMessages Instance()
-    {
-        static PmsPendingMessages obj;
-        return obj;
-    }
-
-private:
-    std::map<std::string, LSMessage*> mPendingMessages;
-
 };
 
 #endif //LUNA_INTERFACE_STATE_H

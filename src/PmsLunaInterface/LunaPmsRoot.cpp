@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2017 LG Electronics, Inc.
+//      Copyright (c) 2017-2018 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -18,8 +18,9 @@
 #include <string>
 
 #include "LunaPmsRoot.h"
+#include "PowerStateClientsMgrImpl.h"
+
 #include "pmscore/LunaInterfaceCommon.h"
-#include "pmscore/PowerStateClientsMgrImpl.h"
 
 const char* const LunaPmsRoot::kPmsInterfaceName = "LunaInterfacePMSRoot";
 const char* const LunaPmsRoot::kPmsLogContext = "LogContext";
@@ -72,6 +73,7 @@ LunaPmsRoot::LunaPmsRoot(PmsConfig* pConfig, LSHandle *pLsHandle) :
     std::string logContext, timeContext;
 
     mpConfig = pConfig;
+    pendingMsg = nullptr;
 
     PmsErrorCode_t err = kPmsSuccess;
     const char* logCtxt = LOG_CONTEXT_DEBUG; //default logging context
@@ -87,8 +89,11 @@ LunaPmsRoot::LunaPmsRoot(PmsConfig* pConfig, LSHandle *pLsHandle) :
     mpConfig->GetString(kPmsInterfaceName,
     kPmsTimeOut, &timeContext);
 
-    char lastChar = timeContext.back();
-    mpLogTimeOutSec = lastChar - '0';
+    std::string HH (timeContext.begin(),   timeContext.begin()+2);
+    std::string MM (timeContext.begin()+3, timeContext.begin()+5);
+    std::string SS (timeContext.begin()+6, timeContext.begin()+8);
+
+    mpLogTimeOutSec = (atoi(HH.c_str()) * 60 * 60) + (atoi(MM.c_str()) * 60) + atoi(SS.c_str());
 
     mpLog = new Logger(logCtxt);
 
@@ -117,6 +122,13 @@ void LunaPmsRoot::RegisterIpc(LSHandle *pLsHandle)
     mPowerStatesMgr = new PowerStateClientsMgrImpl();
     stateReference::GetInstance().registerListener(this);
     return;
+}
+
+PmsErrorCode_t LunaPmsRoot::Stop()
+{
+    MSG_DEBUG("[%s]", __PRETTY_FUNCTION__);
+    stateReference::GetInstance().unregisterListener(this);
+    return kPmsSuccess;
 }
 
 bool LunaPmsRoot::setState(LSHandle *sh, LSMessage *message, void *data)
@@ -333,9 +345,6 @@ bool LunaPmsRoot::respondStateTransitionAckCb(LSHandle *sh, LSMessage *message, 
     pbnjson::JValue requestObj;
     int parseError = 0;
 
-    PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
-    LunaPmsRoot *pThis = (LunaPmsRoot *)(pCxt->GetLunaCategoryContext(kPmsMsgCategoryRoot));
-
     const std::string schema = STRICT_SCHEMA(PROPS_3(PROP(ack, boolean), PROP(state, string), PROP(token, string))REQUIRED_3(ack, state,token));
 
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
@@ -389,38 +398,32 @@ bool LunaPmsRoot::respondStateTransitionAckCb(LSHandle *sh, LSMessage *message, 
     }
     else
     {
-    clearAlarm("notifyAlarmExpiry");
+        clearAlarm("notifyAlarmExpiry");
         capturedReplies.clear();
-        stateReference::GetInstance().processEvent("NACK");
-    responseObj.put("returnValue", false);
-    LSUtils::postToClient(request, responseObj);
 
-    /* send the pending response for shutDown method call */
-        LS::Message pendingResponse(pThis->pendingMsg);
-    pbnjson::JValue penResponseObj = pbnjson::Object();
-    penResponseObj.put("returnValue", false);
-    penResponseObj.put("errorText", "Cannot move to requested state");
-    LSUtils::postToClient(pendingResponse, penResponseObj);
-    LSMessageUnref(message);
+        stateReference::GetInstance().processEvent("NACK");
+        responseObj.put("returnValue", true);
+        LSUtils::postToClient(request, responseObj);
+
+        if(pendingMsg != nullptr) {
+            /* send the pending response for shutDown method call */
+            LS::Message pendingResponse(pendingMsg);
+            pbnjson::JValue penResponseObj = pbnjson::Object();
+            penResponseObj.put("returnValue", false);
+            penResponseObj.put("errorText", "Cannot move to requested state");
+            LSUtils::postToClient(pendingResponse, penResponseObj);
+            LSMessageUnref(pendingMsg);
+            pendingMsg = nullptr;
+        }
+
         return true;
     }
-
-    // TODO:
-    // If Nack has come, notify statemanager to cancel timeouts if any and donot pass event to statemachine
 
     if (LunaPmsRoot::subscribersCount == mPowerStatesMgr->getPowerStateCount(stateName))
     {
         clearAlarm("notifyAlarmExpiry");
-         //PMSLOG_DEBUG("All subscribers response received !!!subscriber_count = %d", subscriber_count);
-         MSG_DEBUG("All subscribers response received !!! subscribersCount = %d", subscribersCount);
-         stateReference::GetInstance().processEvent("ACK");
-
-        /* send the pending response for shutDown method call */
-        pbnjson::JValue penResponseObj = pbnjson::Object();
-        LS::Message pendingResponse(pThis->pendingMsg);
-        penResponseObj.put("returnValue", true);
-        LSUtils::postToClient(pendingResponse, penResponseObj);
-        LSMessageUnref(message);
+        MSG_DEBUG("All subscribers response received !!! subscribersCount = %d", subscribersCount);
+        stateReference::GetInstance().processEvent("ACK");
     }
 
     mSessionToken.clear();
@@ -434,10 +437,6 @@ bool LunaPmsRoot::rebootCb(LSHandle *sh, LSMessage *message, void *data)
 {
     LS::Message request(message);
     pbnjson::JValue requestObj;
-    pbnjson::JValue responseObj = pbnjson::Object();
-
-    PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
-    LunaPmsRoot *pThis = (LunaPmsRoot *)(pCxt->GetLunaCategoryContext(kPmsMsgCategoryRoot));
 
     int parseError = 0;
     const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(reason, string))REQUIRED_1(reason));
@@ -451,22 +450,17 @@ bool LunaPmsRoot::rebootCb(LSHandle *sh, LSMessage *message, void *data)
 
     if ((reason == "reset") ||(reason == "ota") || (reason == "SwDownload"))
     {
-       std::string event  = "reboot";
-       if (!handleEvent(event)) {
-       responseObj.put("returnValue", false);
-       LSUtils::respondWithError(request, errorPower2Busy, POWER2_BUSY);
-       } else {
-                  responseObj.put("returnValue", true);
-              /* Dont send reply until Voting is done */
-              LSMessageRef(message);
-              pThis->pendingMsg = message;
-              }
+        std::string event  = "reboot";
+        if (!handleEvent(event)) {
+            LSUtils::respondWithError(request, errorPower2Busy, POWER2_BUSY);
+        } else {
+            /* Dont send reply until Voting is done */
+            LSMessageRef(message);
+            pendingMsg = message;
+        }
     } else {
-               LSUtils::respondWithError(request, errorUnknown, UNKNOWN_ERROR);
-           return false;
+        LSUtils::respondWithError(request, errorUnknown, UNKNOWN_ERROR);
     }
-
-    LSUtils::postToClient(request, responseObj);
 
     return true;
 }
@@ -476,9 +470,6 @@ bool LunaPmsRoot::shutdownCb(LSHandle *sh, LSMessage *message, void *data)
     LS::Message request(message);
     pbnjson::JValue requestObj;
 
-    PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
-    LunaPmsRoot *pThis = (LunaPmsRoot *)(pCxt->GetLunaCategoryContext(kPmsMsgCategoryRoot));
-
     int parseError = 0;
     const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(reason, string))REQUIRED_1(reason));
 
@@ -487,26 +478,22 @@ bool LunaPmsRoot::shutdownCb(LSHandle *sh, LSMessage *message, void *data)
         return true;
     }
 
-    pbnjson::JValue responseObj = pbnjson::Object();
     std::string reason = requestObj["reason"].asString();
 
     if((reason == "remoteKey") || (reason == "offTimer") || (reason == "deviceKey") || (reason == "localKey"))
     {
         if (!handleEvent("poweroff")) {
-            responseObj.put("returnValue", false);
-        LSUtils::respondWithError(request, errorPower2Busy, POWER2_BUSY);
+            // TODO: Change error message
+            LSUtils::respondWithError(request, errorPower2Busy, POWER2_BUSY);
         } else {
-                   responseObj.put("returnValue", true);
-               /* Dont send reply until Voting is done */
-               LSMessageRef(message);
-               pThis->pendingMsg = message;
-           }
+            /* Dont send reply until Voting is done */
+            LSMessageRef(message);
+            pendingMsg = message;
+        }
     } else {
-           LSUtils::respondWithError(request, errorUnknown, UNKNOWN_ERROR);
-           return false;
+        LSUtils::respondWithError(request, errorUnknown, UNKNOWN_ERROR);
     }
 
-    LSUtils::postToClient(request, responseObj);
     return true;
 }
 
@@ -562,8 +549,8 @@ bool LunaPmsRoot::setPowerOnReasonCb(LSHandle *sh, LSMessage *message, void *dat
     {
         mPowerOnReason = requestObj["reason"].asString();
     } else {
-           LSUtils::respondWithError(request, errorInvalidJsonFormat, INVALID_JSON_FORMAT);
-           return false;
+        LSUtils::respondWithError(request, errorInvalidJsonFormat, INVALID_JSON_FORMAT);
+        return true;
     }
 
     responseObj.put("reason", mPowerOnReason);
@@ -574,8 +561,8 @@ bool LunaPmsRoot::setPowerOnReasonCb(LSHandle *sh, LSMessage *message, void *dat
     if (!LSSubscriptionReply(mpLsHandle, "powerOnReason", payload.c_str(), &lserror)) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
-    return false;
     }
+
     putInDb();
 
     responseObj.put("returnValue", true);
@@ -585,10 +572,6 @@ bool LunaPmsRoot::setPowerOnReasonCb(LSHandle *sh, LSMessage *message, void *dat
 
 bool LunaPmsRoot::setDbKind()
 {
-    PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
-    LunaPmsRoot *pThis = (LunaPmsRoot *)(pCxt->GetLunaCategoryContext(kPmsMsgCategoryRoot));
-    LSError lserror;
-
     pbnjson::JValue jsonObject  = pbnjson::Object();
     jsonObject.put("id", "com.webos.service.power2:1");
     jsonObject.put("owner", "com.webos.service.power2");
@@ -609,21 +592,21 @@ bool LunaPmsRoot::setDbKind()
         return false;
     }
 
+    LSError lserror;
+    LSErrorInit(&lserror);
+
     std::string uridbputkind = "luna://com.palm.db/putKind";
-    bool success = LSCallOneReply(LunaInterfaceBase::mpLsHandle, uridbputkind.c_str(), putkindpayload.c_str(),NULL, pThis, NULL,&lserror);
+    bool success = LSCallOneReply(LunaInterfaceBase::mpLsHandle, uridbputkind.c_str(), putkindpayload.c_str(),NULL, this, NULL,&lserror);
     if (!success) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
-        return true;
     }
+
+    return success;
 }
 
 bool LunaPmsRoot::putInDb()
 {
-    PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
-    LunaPmsRoot *pThis = (LunaPmsRoot *)(pCxt->GetLunaCategoryContext(kPmsMsgCategoryRoot));
-    LSError lserror;
-
     pbnjson::JValue subObject  = pbnjson::Object();
     subObject.put("_kind","com.webos.service.power2:1");
     subObject.put("reason",mPowerOnReason);
@@ -641,14 +624,17 @@ bool LunaPmsRoot::putInDb()
         return false;
     }
 
+    LSError lserror;
+    LSErrorInit(&lserror);
+
     std::string uridbput = "luna://com.palm.db/put";
-    bool success = LSCallOneReply(LunaInterfaceBase::mpLsHandle, uridbput.c_str(), putpayload.c_str(),NULL, pThis, NULL,&lserror);
+    bool success = LSCallOneReply(LunaInterfaceBase::mpLsHandle, uridbput.c_str(), putpayload.c_str(),NULL, this, NULL,&lserror);
     if (!success) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
-        return true;
     }
 
+    return success;
 }
 
 bool LunaPmsRoot::notifyAlarmExpiryCb(LSHandle *sh, LSMessage *message, void *data)
@@ -666,7 +652,9 @@ bool LunaPmsRoot::notifyAlarmExpiryCb(LSHandle *sh, LSMessage *message, void *da
         return true;
     }
 
-    std::string stateName = requestObj["state"].asString();
+// TODO: Later Implement, when alarmd ported
+// Currently below stateName fetching not required
+//    std::string stateName = requestObj["state"].asString();
 
     stateReference::GetInstance().processEvent("ACK");
 
@@ -707,8 +695,6 @@ bool LunaPmsRoot::releaseWakeLockCb(LSHandle *sh, LSMessage *message, void *data
     pbnjson::JValue requestObj;
     pbnjson::JValue jsonObject  = pbnjson::Object();
     int parseError = 0;
-    PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
-    LunaPmsRoot *pThis = (LunaPmsRoot *)(pCxt->GetLunaCategoryContext(kPmsMsgCategoryRoot));
 
     const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(clientId, string))REQUIRED_1(clientId));
 
@@ -729,17 +715,17 @@ bool LunaPmsRoot::releaseWakeLockCb(LSHandle *sh, LSMessage *message, void *data
     clearAlarm("notifyAlarmExpiry");
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
+
     return true;
 }
 
 bool LunaPmsRoot::clearAlarm(const std::string &key)
 {
-    PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
-    LunaPmsRoot *pThis = (LunaPmsRoot *)(pCxt->GetLunaCategoryContext(kPmsMsgCategoryRoot));
     pbnjson::JValue jsonObject  = pbnjson::Object();
     jsonObject.put("key", key);
     std::string alarmClearPayload;
     LSError lserror;
+    LSErrorInit(&lserror);
 
     if (!LSUtils::generatePayload(jsonObject, alarmClearPayload))
     {
@@ -747,12 +733,13 @@ bool LunaPmsRoot::clearAlarm(const std::string &key)
     }
 
     std::string uriAlarmClear = "luna://com.webos.service.alarm/clear";
-    bool success = LSCallOneReply(LunaInterfaceBase::mpLsHandle, uriAlarmClear.c_str(), alarmClearPayload.c_str(),NULL, pThis,NULL,&lserror);
+    bool success = LSCallOneReply(LunaInterfaceBase::mpLsHandle, uriAlarmClear.c_str(), alarmClearPayload.c_str(),NULL, this, NULL,&lserror);
     if (!success) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
-        return true;
     }
+
+    return success;
 }
 
 bool LunaPmsRoot::setAwake(int timeout, LS::Message &request, std::string clientName, LSHandle *sh)
@@ -766,25 +753,22 @@ bool LunaPmsRoot::setAwake(int timeout, LS::Message &request, std::string client
         LSUtils::respondWithError(request, errorClientNotRegistered, CLIENT_NOT_REGISTERED);
         return false;
     }
+
     // timeout is invalid
     // return error
-    if(timeout < 1 || timeout > maxSeconds)
+    if(timeout <= 0 || timeout > maxSeconds)
     {
         LSUtils::respondWithError(request, errorInvalidJsonFormat, INVALID_JSON_FORMAT);
-    return false;
+        return false;
     }
-    if (timeout > 0 )
+
+    if (setAlarm(timeout))
     {
-        if (setAlarm(timeout))
-        {
-            MSG_DEBUG("Alarm is set ");
-        }
-        else
-        {
-             LSUtils::respondWithError(request, errorInternalError, 0);
-             return false;
-        }
+        MSG_DEBUG("Alarm is set ");
     }
+
+    // TODO: Decide Else part, if alarm not set.
+
     return true;
 }
 
@@ -796,9 +780,6 @@ gboolean LunaPmsRoot::timerFired(gpointer data)
 bool LunaPmsRoot::setAlarm(int timeout)
 {
 #if NOTIFY_WITH_ALARM
-    PMSLunaCategoryContext *pCxt = PMSLunaCategoryContext::Instance();
-    LunaPmsRoot *pThis = (LunaPmsRoot *)(pCxt->GetLunaCategoryContext(kPmsMsgCategoryRoot));
-
     char time[MAX_TIME_FORMAT_SIZE] = {'\0'};
     char params[MAX_PARAMS_SIZE] = {'\0'};
     int HH = 0;
@@ -823,16 +804,17 @@ bool LunaPmsRoot::setAlarm(int timeout)
     jsonObject.put("params", "{}");
 
     std::string alarmSetPayload;
-    LSError lserror;
 
     if (!LSUtils::generatePayload(jsonObject, alarmSetPayload))
     {
         MSG_DEBUG("Error while generating the payload");
-    LSUtils::respondWithError(request, errorInvalidJsonFormat, INVALID_JSON_FORMAT);
+        LSUtils::respondWithError(request, errorInvalidJsonFormat, INVALID_JSON_FORMAT);
         return false;
     }
 
-    bool success = LSCallOneReply(LunaInterfaceBase::mpLsHandle, uriAlarmSet.c_str(), alarmSetPayload.c_str(),NULL, pThis, NULL,&lserror);
+    LSError lserror;
+    LSErrorInit(&lserror);
+    bool success = LSCallOneReply(LunaInterfaceBase::mpLsHandle, uriAlarmSet.c_str(), alarmSetPayload.c_str(),NULL, this, NULL,&lserror);
     if (!success) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
@@ -840,7 +822,7 @@ bool LunaPmsRoot::setAlarm(int timeout)
     }
 #else
     /*gtimer for timeout alarms*/
-    sTimerCheck = g_timer_source_new_seconds(TIMER_CHECK_TIMEOUT);
+    sTimerCheck = g_timer_source_new_seconds(timeout);
     g_source_set_callback((GSource *)sTimerCheck,(GSourceFunc)timerFired, NULL, NULL);
     g_source_attach((GSource *)sTimerCheck, g_main_loop_get_context(mLoopdata));
 #endif
@@ -860,7 +842,8 @@ bool LunaPmsRoot::addSubscription(LSHandle* sh, LSMessage* message, const std::s
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
     }
-        return retVal;
+
+    return retVal;
 }
 
 // TOCHECK: decide for single addSubscription method. API should decide the key
@@ -878,6 +861,7 @@ bool LunaPmsRoot::addSubscription(LSHandle* sh, LSMessage* message, std::string 
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
     }
+
     return retVal;
 }
 
@@ -903,6 +887,7 @@ PmsErrorCode_t LunaPmsRoot::CancelSubscriptionStateChange (LSMessage* message) {
 
     if (mCurrentState == statename && mIsTransitionState) {
         if (LunaPmsRoot::subscribersCount == mPowerStatesMgr->getPowerStateCount(statename)) {
+            clearAlarm("notifyAlarmExpiry");
             stateReference::GetInstance().processEvent("ACK");
         }
     }
@@ -922,6 +907,7 @@ bool LunaPmsRoot::handleTransitionState(const std::string& nextState)
 
     LSError lserror;
     LSErrorInit(&lserror);
+
     pbnjson::JValue responseObj = pbnjson::Object();
     mSessionToken = generateRandomString(10);
     responseObj.put("state", mCurrentState);
@@ -935,16 +921,19 @@ bool LunaPmsRoot::handleTransitionState(const std::string& nextState)
     {
         MSG_DEBUG("Alarm is set ");
     }
-    else
+
+    // TODO: Decide ELSE section
+    /* else
     {
          return false;
-    }
+    }*/
 
     if (!LSSubscriptionReply(mpLsHandle, mCurrentState.c_str(), payload.c_str(), &lserror)) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
         return false;
     }
+
     return true;
 }
 
@@ -959,6 +948,16 @@ bool LunaPmsRoot::handleStateChange(const std::string& statename)
         return true;
     }
 
+    /* send the pending response for shutDown method call */
+    if(pendingMsg != nullptr) {
+        pbnjson::JValue penResponseObj = pbnjson::Object();
+        LS::Message pendingResponse(pendingMsg);
+        penResponseObj.put("returnValue", true);
+        LSUtils::postToClient(pendingResponse, penResponseObj);
+        LSMessageUnref(pendingMsg);
+        pendingMsg = nullptr;
+    }
+
     mCurrentState = statename;
 
     LSError lserror;
@@ -970,13 +969,12 @@ bool LunaPmsRoot::handleStateChange(const std::string& statename)
     std::string payload;
     LSUtils::generatePayload(responseObj, payload);
 
-    clearAlarm("notifyAlarmExpiry");
-
     if (!LSSubscriptionReply(mpLsHandle, "powerState", payload.c_str(), &lserror)) {
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
         return false;
     }
+
     return true;
 }
 
