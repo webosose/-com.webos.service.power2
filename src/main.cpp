@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2017 LG Electronics, Inc.
+//      Copyright (c) 2017-2018 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -14,7 +14,8 @@
 
 #include "pmscore/log.h"
 #include "pmscore/PMSCommon.h"
-#include "pmscore/PowerManagerService.h"
+
+#include "PowerManagerService.h"
 
 static GMainLoop *mainLoop = nullptr;
 
@@ -64,6 +65,8 @@ int main(int argc, char *argv[])
     }
 
     g_main_loop_run(mainLoop);
+    pmService->deinit();
+
     g_main_loop_unref(mainLoop);
 
     return EXIT_SUCCESS;

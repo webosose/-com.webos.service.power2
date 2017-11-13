@@ -13,10 +13,10 @@
 #include <gtest/gtest.h>
 #include <pbnjson.hpp>
 
-#include "PMSCommon.h"
-#include "PmsLuna2Utils.h"
+#include "pmscore/PMSCommon.h"
+#include "pmscore/PmsLuna2Utils.h"
 #include "PowerManagerService.h"
-#include "NyxUtil.h"
+#include "pmscore/NyxUtil.h"
 #include "TestUtil.h"
 
 static GMainLoop *mainLoop = nullptr;
@@ -40,33 +40,7 @@ TEST_F(TestPMPowerManagerService, PowerManagerService_init)
     printf("------------------ BEGIN PowerManagerService_init ----------------------------\n");
     mainLoop = g_main_loop_new(NULL, FALSE);
     std::unique_ptr<PowerManagerService> pmService(new PowerManagerService(mainLoop));
-    pmService->init();
+    bool result = pmService->init();
+    EXPECT_FALSE(result);
     printf("------------------ END PowerManagerService_init----------------------------\n");
-}
-
-TEST_F(TestPMPowerManagerService, PowerManagerService_initSM)
-{
-    printf("------------------ BEGIN PowerManagerService_initSM ----------------------------\n");
-    mainLoop = g_main_loop_new(NULL, FALSE);
-    std::unique_ptr<PowerManagerService> pmService(new PowerManagerService(mainLoop));
-    //pmService->initSM();
-    printf("------------------ END PowerManagerService_initSM----------------------------\n");
-}
-
-TEST_F(TestPMPowerManagerService, PowerManagerService_cbSMAPI1)
-{
-    printf("------------------ BEGIN PowerManagerService_cbSMAPI1 ----------------------------\n");
-    mainLoop = g_main_loop_new(NULL, FALSE);
-    std::unique_ptr<PowerManagerService> pmService(new PowerManagerService(mainLoop));
-    //pmService->cbSMAPI1();
-    printf("------------------ END PowerManagerService_cbSMAPI1----------------------------\n");
-}
-
-TEST_F(TestPMPowerManagerService, PowerManagerService_cbSMAPI2)
-{
-    printf("------------------ BEGIN PowerManagerService_cbSMAPI2 ----------------------------\n");
-    mainLoop = g_main_loop_new(NULL, FALSE);
-    std::unique_ptr<PowerManagerService> pmService(new PowerManagerService(mainLoop));
-    //pmService->cbSMAPI2();
-    printf("------------------ END PowerManagerService_cbSMAPI2----------------------------\n");
 }

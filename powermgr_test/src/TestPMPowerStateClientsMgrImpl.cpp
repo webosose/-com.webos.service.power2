@@ -13,13 +13,13 @@
 #include <gtest/gtest.h>
 #include <pbnjson.hpp>
 
-#include "PMSCommon.h"
-#include "PmsLuna2Utils.h"
+#include "pmscore/PMSCommon.h"
+#include "pmscore/PmsLuna2Utils.h"
 #include "PowerManagerService.h"
-#include "PmsLogging.h"
-#include "NyxUtil.h"
-#include "TestUtil.h"
+#include "pmscore/PmsLogging.h"
+#include "pmscore/NyxUtil.h"
 #include "PowerStateClientsMgrImpl.h"
+#include "TestUtil.h"
 
 class TestPMPowerStateClientsMgrImpl: public ::testing::Test {
     public:
@@ -45,7 +45,12 @@ TEST_F(TestPMPowerStateClientsMgrImpl, PMPowerStateClientsMgrImpl_addClient)
     std::string clientName = "com.webos.dummy";
     pwrstateclientmgr->addClient(stateName, clientName);
 
-    //! Test Case 2
+    //! Test Case2
+    stateName = "ActiveStandByState";
+    clientName = "com.webos.dummy";
+    pwrstateclientmgr->addClient(stateName, clientName);
+
+    //! Test Case 3
     stateName = "TransitionPowerOffState";
     clientName = "com.webos.testalarm";
     pwrstateclientmgr->addClient(stateName, clientName);
@@ -60,7 +65,22 @@ TEST_F(TestPMPowerStateClientsMgrImpl, PMPowerStateClientsMgrImpl_removeClient)
     //! Test Case 1
     std::string stateName = "ActiveState";
     std::string clientName = "com.webos.dummy";
-    pwrstateclientmgr->removeClient(stateName, clientName);
+    bool result = pwrstateclientmgr->removeClient(stateName, clientName);
+    EXPECT_FALSE(result);
+
+    //! Test Case 2
+    stateName = "ActiveStandByState";
+    clientName = "com.webos.dummy";
+    pwrstateclientmgr->addClient(stateName, clientName);
+    result = pwrstateclientmgr->removeClient(stateName, clientName);
+    EXPECT_TRUE(result);
+
+    //! Test Case 3
+    stateName = "TransitionPowerOffState";
+    clientName = "com.webos.dummy";
+    pwrstateclientmgr->addClient(stateName, clientName);
+    result = pwrstateclientmgr->removeClient(stateName, clientName);
+    EXPECT_TRUE(result);
 
     printf("------------------ END PMPowerStateClientsMgrImpl_removeClient----------------------------\n");
 }
@@ -68,10 +88,20 @@ TEST_F(TestPMPowerStateClientsMgrImpl, PMPowerStateClientsMgrImpl_removeClient)
 TEST_F(TestPMPowerStateClientsMgrImpl, PMPowerStateClientsMgrImpl_updateClientRegistered)
 {
     printf("------------------ BEGIN PMPowerStateClientsMgrImpl_updateClientRegistered ----------------------------\n");
+    //! Test case 1
     std::string clientId;
-    bool isRegister;
+    bool isRegister = true;
     PowerStateClientsMgrImpl *pwrstateclientmgr= new PowerStateClientsMgrImpl();
-    pwrstateclientmgr->updateClientRegistered(clientId, isRegister);
+    bool result = pwrstateclientmgr->updateClientRegistered(clientId, isRegister);
+    EXPECT_FALSE(result);
+
+    //! Test case 2
+    std::string stateName = "ActiveStandByState";
+    std::string clientName = "com.webos.dummy";
+    pwrstateclientmgr->addClient(stateName, clientName);
+    result = pwrstateclientmgr->updateClientRegistered(stateName, isRegister);
+    EXPECT_TRUE(result);
+
     printf("------------------ END PMPowerStateClientsMgrImpl_updateClientRegistered----------------------------\n");
 }
 
@@ -80,9 +110,24 @@ TEST_F(TestPMPowerStateClientsMgrImpl, PMPowerStateClientsMgrImpl_isClientExist)
     printf("------------------ BEGIN PMPowerStateClientsMgrImpl_isClientExist ----------------------------\n");
     PowerStateClientsMgrImpl *pwrstateclientmgr= new PowerStateClientsMgrImpl();
     //! Test Case 1
-    std::string stateName = "TransitionPowerOffState";
+    std::string stateName = "ActiveState";
     std::string clientName = "com.webos.testalarm";
-    EXPECT_TRUE(pwrstateclientmgr->isClientExist(stateName, clientName));
+    bool result = pwrstateclientmgr->isClientExist(stateName, clientName);
+    EXPECT_FALSE(result);
+
+    //! Test Case 2
+    stateName = "ActiveStandByState";
+    clientName = "com.webos.testalarm";
+    pwrstateclientmgr->addClient(stateName, clientName);
+    result = pwrstateclientmgr->isClientExist(stateName, clientName);
+    EXPECT_TRUE(result);
+
+    //! Test Case 3
+    stateName = "TransitionPowerOffState";
+    clientName = "com.webos.testalarm";
+    pwrstateclientmgr->addClient(stateName, clientName);
+    result = pwrstateclientmgr->isClientExist(stateName, clientName);
+    EXPECT_TRUE(result);
 
     printf("------------------ END PMPowerStateClientsMgrImpl_isClientExist----------------------------\n");
 }

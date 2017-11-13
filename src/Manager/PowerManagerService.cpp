@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2017 LG Electronics, Inc.
+//      Copyright (c) 2017-2018 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -11,15 +11,14 @@
 // LICENSE@@@
 
 #include <cstdio>
-#include <functional>
-#include <nyx/nyx_client.h>
 #include <string>       // std::string
-#include <sstream>      // std::stringstream
 
 #include "pmscore/log.h"
 #include "pmscore/PmsConfigLinux.h"
-#include "pmscore/PowerManagerService.h"
 #include "pmscore/Singleton.h"
+#include "pmscore/StateManager.h"
+
+#include "PowerManagerService.h"
 
 const char* const PowerManagerService::kPmsInterfaceName = "LunaInterfacePMSRoot";
 const char* const PowerManagerService::kPmsLogContext = "LogContext";
@@ -34,7 +33,8 @@ PowerManagerService::PowerManagerService(GMainLoop *mainLoop):
     PmsErrorCode_t err = kPmsSuccess;
     const char* logCtxt = LOG_CONTEXT_DEBUG; //default logging context
 
-    err = mpConfig->GetString(kPmsInterfaceName,kPmsLogContext, &logContext);
+    // TODO: Change The Logging Context, make it based on class names
+    err = mpConfig->GetString(kPmsInterfaceName, kPmsLogContext, &logContext);
 
     if(err == kPmsSuccess)
     logCtxt = logContext.c_str();
@@ -70,14 +70,37 @@ bool PowerManagerService::init()
 
     if (!initializeStateManager())
     {
-        // decide return
-        MSG_INFO("Error StateMachine");
-        return false;
+        MSG_INFO("Error StateMachine: Initialization Failed");
     }
 
     return true;
 }
 
+void PowerManagerService::deinit()
+{
+    MSG_DEBUG("[%s]", __PRETTY_FUNCTION__);
+    PmsErrorCode_t err = kPmsSuccess;
+
+    if (!deinitializeStateManager())
+    {
+        MSG_INFO("Error Deinitializing  StateMachine");
+    }
+
+    if (mpClientBlock) {
+        mpClientBlock->Stop();
+
+        err = mpClientBlock->Deinitialize();
+
+        if (err != kPmsSuccess) {
+            MSG_INFO("Error Deinitializing  ClientBlock");
+        }
+    }
+}
+
 bool PowerManagerService::initializeStateManager() {
     return stateReference::GetInstance().init();
+}
+
+bool PowerManagerService::deinitializeStateManager() {
+    return stateReference::GetInstance().deinit();
 }
