@@ -775,6 +775,7 @@ bool LunaPmsRoot::setAwake(int timeout, LS::Message &request, std::string client
 gboolean LunaPmsRoot::timerFired(gpointer data)
 {
     stateReference::GetInstance().processEvent("ACK");
+    return true;
 }
 
 bool LunaPmsRoot::setAlarm(int timeout)
