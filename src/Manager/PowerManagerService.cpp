@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2017-2018 LG Electronics, Inc.
+//      Copyright (c) 2017-2019 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -47,6 +47,7 @@ PowerManagerService::~PowerManagerService()
 {
     delete mpConfig;
     mpConfig = nullptr;
+
     delete mpClientBlock;
     mpClientBlock = nullptr;
 
