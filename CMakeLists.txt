@@ -1,6 +1,6 @@
 # @@@LICENSE
 #
-#   Copyright (c) 2017 LG Electronics Inc. All Rights Reserved
+#   Copyright (c) 2017-2020 LG Electronics Inc. All Rights Reserved
 #
 # LICENSE@@@
 
@@ -63,7 +63,7 @@ add_definitions(-DENABLE_POWEROFF_REBOOT_SIGNAL)
 add_definitions(-DGTEST_HAS_TR1_TUPLE=0)
 add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=0)
 add_definitions(-DPMS_CONF_FILE_PATH="/var/PMS/pms.conf")
-add_definitions(-DFSM_FILE_PATH="/var/PMS/rpi.fsm")
+add_definitions(-DFSM_FILE_PATH="/var/PMS/pms.fsm")
 
 file(GLOB SOURCE_FILES src/*/*.cpp)
 

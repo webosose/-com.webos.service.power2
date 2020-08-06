@@ -5,7 +5,7 @@
        "permissions": [
            {
                "service":"com.webos.service.power2",
-               "outbound":[]
+               "outbound":["com.webos.service.connectionmanager"]
            }
        ]
 }
