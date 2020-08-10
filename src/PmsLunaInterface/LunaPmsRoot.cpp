@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2017-2018 LG Electronics, Inc.
+//      Copyright (c) 2017-2020 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -35,6 +35,7 @@ int LunaPmsRoot::mpLogTimeOutSec = 0;
 #define CALLBACK_BIND(function) (std::bind1st(std::mem_fun(function), this))
 #define TIMER_CHECK_TIMEOUT      3
 #define NOTIFY_WITH_ALARM        0
+#define INVALID_PARAMETERS       8
 
 /**
  * Register with the factory object
@@ -88,16 +89,9 @@ LunaPmsRoot::LunaPmsRoot(PmsConfig* pConfig, LSHandle *pLsHandle) :
 
     mpConfig->GetString(kPmsInterfaceName,
     kPmsTimeOut, &timeContext);
-
-    std::string HH (timeContext.begin(),   timeContext.begin()+2);
-    std::string MM (timeContext.begin()+3, timeContext.begin()+5);
-    std::string SS (timeContext.begin()+6, timeContext.begin()+8);
-
-    mpLogTimeOutSec = (atoi(HH.c_str()) * 60 * 60) + (atoi(MM.c_str()) * 60) + atoi(SS.c_str());
+    mpLogTimeOutSec = convertTimetoSec(timeContext);
 
     mpLog = new Logger(logCtxt);
-
-    mLoopdata = g_main_loop_new(NULL, FALSE);
 
     // register the IPC methods and notification callbacks with Client
     RegisterIpc(pLsHandle);
@@ -117,18 +111,47 @@ void LunaPmsRoot::RegisterIpc(LSHandle *pLsHandle)
         LSErrorFree(&lserror);
         return;
     }
-    setDbKind();
+    LSErrorFree(&lserror);
 
     mPowerStatesMgr = new PowerStateClientsMgrImpl();
-    stateReference::GetInstance().registerListener(this);
     return;
+}
+
+PmsErrorCode_t LunaPmsRoot::Start()
+{
+    MSG_DEBUG("[%s]", __PRETTY_FUNCTION__);
+    LSError lserror;
+    LSErrorInit(&lserror);
+    mLoopContext = LSGmainGetContext(mpLsHandle, &lserror);
+    if(!mLoopContext)
+    {
+        LSErrorPrint(&lserror, stderr);
+        LSErrorFree(&lserror);
+        return kPmsErrUnknown;
+    }
+
+    stateReference::GetInstance().registerListener(this);
+
+    return IpcInterfaceBase::Start();
 }
 
 PmsErrorCode_t LunaPmsRoot::Stop()
 {
     MSG_DEBUG("[%s]", __PRETTY_FUNCTION__);
     stateReference::GetInstance().unregisterListener(this);
-    return kPmsSuccess;
+
+    return IpcInterfaceBase::Stop();
+}
+
+inline
+int LunaPmsRoot::convertTimetoSec(std::string& in_time)
+{
+    std::string HH (in_time.begin(),   in_time.begin()+2);
+    std::string MM (in_time.begin()+3, in_time.begin()+5);
+    std::string SS (in_time.begin()+6, in_time.begin()+8);
+
+    int res = (atoi(HH.c_str()) * 60 * 60) + (atoi(MM.c_str()) * 60) + atoi(SS.c_str());
+    return res;
 }
 
 bool LunaPmsRoot::setState(LSHandle *sh, LSMessage *message, void *data)
@@ -253,6 +276,7 @@ bool LunaPmsRoot::setStateCb(LSHandle *sh, LSMessage *message, void *data)
     {
         LSUtils::respondWithError(request, errorUnknown, UNKNOWN_ERROR);
         MSG_DEBUG("Could not set the State  %s", stateName.c_str());
+        return true;
     }
 
     LSUtils::postToClient(request, responseObj);
@@ -311,8 +335,8 @@ bool LunaPmsRoot::registerStateTransitionCb(LSHandle *sh, LSMessage *message, vo
 
     pbnjson::JValue responseObj = pbnjson::Object();
 
-    if ((stateName == "ActiveState") || (stateName == "ActiveStandbyState")) {
-        if (mPowerStatesMgr->isClientExist(mCurrentState, clientName))
+    if ((stateName == "ActiveState") || (stateName == "GarageModeState")) {
+        if (mPowerStatesMgr->isClientExist(stateName, clientName))
         {
             LSUtils::respondWithError(request, errorCleintAlreadyRegistered, CLIENT_ALREADY_REGISTERED);
             return false;
@@ -328,6 +352,11 @@ bool LunaPmsRoot::registerStateTransitionCb(LSHandle *sh, LSMessage *message, vo
             return true;
         }
         addSubscription(sh, message, stateName);
+    }
+    else
+    {
+        LSUtils::respondWithError(request, errorInvalidParam, INVALID_PARAMETERS);
+        return false;
     }
 
     RegisterCancelSubscriptionCallback(message, CALLBACK_BIND(&LunaPmsRoot::CancelSubscriptionStateChange));
@@ -423,10 +452,10 @@ bool LunaPmsRoot::respondStateTransitionAckCb(LSHandle *sh, LSMessage *message, 
     {
         clearAlarm("notifyAlarmExpiry");
         MSG_DEBUG("All subscribers response received !!! subscribersCount = %d", subscribersCount);
+        mSessionToken.clear();
         stateReference::GetInstance().processEvent("ACK");
     }
 
-    mSessionToken.clear();
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
 
@@ -450,6 +479,19 @@ bool LunaPmsRoot::rebootCb(LSHandle *sh, LSMessage *message, void *data)
 
     if ((reason == "reset") ||(reason == "ota") || (reason == "SwDownload"))
     {
+        if(reason == "ota") //create flag file to identify after reboot.
+        {
+            FILE *flagFile = fopen("/var/swupdatedone", "wb");
+            if(flagFile)
+            {
+                fclose(flagFile);
+            }
+            else
+            {
+                LSUtils::respondWithError(request, errorUnknown, UNKNOWN_ERROR);
+                return true;
+            }
+        }
         std::string event  = "reboot";
         if (!handleEvent(event)) {
             LSUtils::respondWithError(request, errorPower2Busy, POWER2_BUSY);
@@ -480,8 +522,12 @@ bool LunaPmsRoot::shutdownCb(LSHandle *sh, LSMessage *message, void *data)
 
     std::string reason = requestObj["reason"].asString();
 
-    if((reason == "remoteKey") || (reason == "offTimer") || (reason == "deviceKey") || (reason == "localKey"))
+    if((reason == "remoteKey") || (reason == "offTimer") || (reason == "deviceKey") || (reason == "localKey") || (reason == "diagnosticsDone"))
     {
+        if (reason == "diagnosticsDone")
+        {
+            remove("/var/swupdatedone");
+        }
         if (!handleEvent("poweroff")) {
             // TODO: Change error message
             LSUtils::respondWithError(request, errorPower2Busy, POWER2_BUSY);
@@ -562,8 +608,6 @@ bool LunaPmsRoot::setPowerOnReasonCb(LSHandle *sh, LSMessage *message, void *dat
         LSErrorPrint(&lserror, stderr);
         LSErrorFree(&lserror);
     }
-
-    putInDb();
 
     responseObj.put("returnValue", true);
     LSUtils::postToClient(request, responseObj);
@@ -652,9 +696,9 @@ bool LunaPmsRoot::notifyAlarmExpiryCb(LSHandle *sh, LSMessage *message, void *da
         return true;
     }
 
-// TODO: Later Implement, when alarmd ported
-// Currently below stateName fetching not required
-//    std::string stateName = requestObj["state"].asString();
+    // TODO: Later Implement, when alarmd ported
+    // Currently below stateName fetching not required
+    // std::string stateName = requestObj["state"].asString();
 
     stateReference::GetInstance().processEvent("ACK");
 
@@ -721,6 +765,8 @@ bool LunaPmsRoot::releaseWakeLockCb(LSHandle *sh, LSMessage *message, void *data
 
 bool LunaPmsRoot::clearAlarm(const std::string &key)
 {
+
+#if NOTIFY_WITH_ALARM
     pbnjson::JValue jsonObject  = pbnjson::Object();
     jsonObject.put("key", key);
     std::string alarmClearPayload;
@@ -740,6 +786,15 @@ bool LunaPmsRoot::clearAlarm(const std::string &key)
     }
 
     return success;
+#else
+    if(sTimerCheck && !g_source_is_destroyed((GSource*)sTimerCheck))
+    {
+        g_source_destroy ((GSource*)sTimerCheck);
+        sTimerCheck = NULL;
+        return true;
+    }
+    return false;
+#endif
 }
 
 bool LunaPmsRoot::setAwake(int timeout, LS::Message &request, std::string clientName, LSHandle *sh)
@@ -775,7 +830,7 @@ bool LunaPmsRoot::setAwake(int timeout, LS::Message &request, std::string client
 gboolean LunaPmsRoot::timerFired(gpointer data)
 {
     stateReference::GetInstance().processEvent("ACK");
-    return true;
+    return G_SOURCE_REMOVE;
 }
 
 bool LunaPmsRoot::setAlarm(int timeout)
@@ -825,7 +880,8 @@ bool LunaPmsRoot::setAlarm(int timeout)
     /*gtimer for timeout alarms*/
     sTimerCheck = g_timer_source_new_seconds(timeout);
     g_source_set_callback((GSource *)sTimerCheck,(GSourceFunc)timerFired, NULL, NULL);
-    g_source_attach((GSource *)sTimerCheck, g_main_loop_get_context(mLoopdata));
+    g_source_attach((GSource *)sTimerCheck, mLoopContext);
+    g_source_unref((GSource*)sTimerCheck);  //TODO: revisit this line
 #endif
 
     return true;
@@ -900,6 +956,11 @@ bool LunaPmsRoot::handleTransitionState(const std::string& nextState)
 {
     MSG_DEBUG("Transition State Notification Reached Successfully!!");
     mIsTransitionState = true;
+
+    if(nextState == "GarageModeState")  //TransitionGarageState not allowed for subscriber voting.
+    {
+        return true;
+    }
 
     if (0 == mPowerStatesMgr->getPowerStateCount(mCurrentState)) {
         stateReference::GetInstance().processEvent("ACK");
@@ -1014,4 +1075,3 @@ std::string LunaPmsRoot::generateRandomString( size_t length )
     std::generate_n( str.begin(), length, randchar );
     return str;
 }
-

@@ -10,8 +10,14 @@ Type=LunaPMS
 
 [LunaPMS]
 ServiceName=com.webos.service.power2
-Interface=LunaInterfacePMSRoot;
+Interface=LunaInterfacePMSRoot; LunaInterfacePMSSupport
 
 [LunaInterfacePMSRoot]
 LogContext=powermgr
-TimeOut=00:00:03
+TimeOut=00:00:15
+
+[LunaInterfacePMSSupport]
+LogContext=powermgr
+TimeOut=00:00:30
+GarageModeTimeOut=00:05:00
+GarageSSID=

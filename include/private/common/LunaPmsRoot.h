@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2017-2019 LG Electronics, Inc.
+//      Copyright (c) 2017-2020 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -53,6 +53,7 @@ public:
 
     GTimerSource *sTimerCheck = nullptr;
 
+    PmsErrorCode_t Start();
     PmsErrorCode_t Stop();
     //To Handle Fixed State and Transition State
     bool handleStateChange(const std::string& statename);
@@ -123,7 +124,9 @@ private:
     bool handleEvent(const std::string& event);
     bool forceStateChange(const std::string& statename);
 
-    GMainLoop *mLoopdata = nullptr;
+    int convertTimetoSec(std::string& in_time);
+
+    GMainContext *mLoopContext = nullptr;
 
     /**
     * @brief Register the CreateObject() method of the LunaInterfaceCall class with the Interface
