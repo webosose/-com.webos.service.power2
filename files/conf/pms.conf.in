@@ -14,10 +14,13 @@ Interface=LunaInterfacePMSRoot; LunaInterfacePMSSupport
 
 [LunaInterfacePMSRoot]
 LogContext=powermgr
-TimeOut=00:00:15
+#TimeOut: time to wait for voting during transition state. (like GarageMode to GarageExit)
+TimeOut=00:15:00
 
 [LunaInterfacePMSSupport]
 LogContext=powermgr
+#TimeOut: time to wait in GargeExit before going to power off. With in this time reboot(ota) event has to be triggered if sw updates done.
 TimeOut=00:00:30
-GarageModeTimeOut=00:05:00
+#GarageModeTimeOut: time to wait in GarageMode
+GarageModeTimeOut=00:00:03
 GarageSSID=
