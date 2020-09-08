@@ -1069,7 +1069,16 @@ std::string LunaPmsRoot::generateRandomString( size_t length )
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         "abcdefghijklmnopqrstuvwxyz";
         const size_t max_index = (sizeof(charset) - 1);
-        return charset[ rand() % max_index ];
+        unsigned int random = 0;
+        FILE *fp = NULL;
+
+        fp = fopen("/dev/urandom", "r");
+        if (fp) {
+           (void)fread(&random, sizeof(random), 1, fp);
+           (void)fclose(fp);
+        }
+
+        return charset[ random % max_index ];
     };
     std::string str(length,0);
     std::generate_n( str.begin(), length, randchar );
