@@ -1,0 +1,25 @@
+# This is the configuration file for PMS
+
+#Configuration for PMS
+[PMS]
+#Supported ipc types in PMS
+Ipc=Luna
+
+[Luna]
+Type=LunaPMS
+
+[LunaPMS]
+ServiceName=com.webos.service.power2
+Interface=LunaInterfacePMSRoot; LunaInterfacePMSSupport
+
+[LunaInterfacePMSRoot]
+LogContext=powermgr
+#TimeOut: time to wait for voting during transition state. (like GarageMode to GarageExit)
+TimeOut=00:15:00
+
+[LunaInterfacePMSSupport]
+LogContext=powermgr
+#GarageExitTimeOut: time to wait in GargeExit before going to power off. With in this time reboot(ota) event has to be triggered if sw updates done.
+GarageExitTimeOut=00:00:30
+#GarageModeTimeOut: time to wait in GarageMode
+GarageModeTimeOut=00:00:03
