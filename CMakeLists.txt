@@ -31,6 +31,8 @@ include(webOS/webOS)
 webos_modules_init(1 0 0 QUALIFIER RC7)
 webos_component(1 0 0)
 
+webos_distro_dep()
+
 include(FindPkgConfig)
 
 pkg_check_modules(LS2 REQUIRED luna-service2)
@@ -95,7 +97,11 @@ install(TARGETS ${CMAKE_PROJECT_NAME}
 
 install(PROGRAMS scripts/public/suspend_action DESTINATION ${WEBOS_INSTALL_SBINDIR})
 webos_build_configured_file(files/conf/pmlog/powermgr.conf SYSCONFDIR pmlog.d)
-webos_build_configured_file(files/conf/pms.conf LOCALSTATEDIR PMS)
+if(WEBOS_TARGET_DISTRO STREQUAL "webos-auto")
+	webos_build_configured_file(files/conf/auto/pms.conf LOCALSTATEDIR PMS)
+elseif(WEBOS_TARGET_DISTRO STREQUAL "webos")
+    webos_build_configured_file(files/conf/ose/pms.conf LOCALSTATEDIR PMS)
+endif()
 
 # OYK_2013_07_09 : Add MSM suspend settings
 install(PROGRAMS scripts/public/msm_suspend DESTINATION ${WEBOS_INSTALL_SBINDIR})
