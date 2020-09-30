@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2017-2018 LG Electronics, Inc.
+//      Copyright (c) 2017-2020 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -43,7 +43,7 @@ bool PowerStateClientsMgrImpl::removeClient(const std::string &statename, const 
 
     if (iter != it->second.end()) {
         it->second.erase(iter);
-        MSG_DEBUG("Client Removed: %s", clientName);
+        MSG_DEBUG("Client Removed: %s", clientName.c_str());
         return true;
     }
     return false;
