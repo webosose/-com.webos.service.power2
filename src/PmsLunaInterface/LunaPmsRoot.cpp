@@ -26,8 +26,6 @@ const char* const LunaPmsRoot::kPmsInterfaceName = "LunaInterfacePMSRoot";
 const char* const LunaPmsRoot::kPmsLogContext = "LogContext";
 const char* const LunaPmsRoot::kPmsTimeOut = "TimeOut";
 
-const char* LunaPmsRoot::mpLogContext = "";
-
 std::string LunaPmsRoot::mPowerOnReason = "Not Set";
 bool LunaPmsRoot::mIsTransitionState = false;
 int LunaPmsRoot::mpLogTimeOutSec = 0;
@@ -81,15 +79,13 @@ LunaPmsRoot::LunaPmsRoot(PmsConfig* pConfig, LSHandle *pLsHandle) :
 
     err = mpConfig->GetString(kPmsInterfaceName,
     kPmsLogContext, &logContext);
-
     if(err == kPmsSuccess)
-    logCtxt = logContext.c_str();
+        logCtxt = logContext.c_str();
 
-    mpLogContext = logCtxt;
-
-    mpConfig->GetString(kPmsInterfaceName,
+    err = mpConfig->GetString(kPmsInterfaceName,
     kPmsTimeOut, &timeContext);
-    mpLogTimeOutSec = convertTimetoSec(timeContext);
+    if(err == kPmsSuccess)
+        mpLogTimeOutSec = convertTimetoSec(timeContext);
 
     mpLog = new Logger(logCtxt);
 
@@ -526,7 +522,10 @@ bool LunaPmsRoot::shutdownCb(LSHandle *sh, LSMessage *message, void *data)
     {
         if (reason == "diagnosticsDone")
         {
-            remove("/var/swupdatedone");
+            if(remove("/var/swupdatedone") != 0)
+            {
+                MSG_DEBUG("Not able to delete swupdatedone file");
+            }
         }
         if (!handleEvent("poweroff")) {
             // TODO: Change error message
@@ -1062,7 +1061,7 @@ bool LunaPmsRoot::handleEvent(const std::string& event)
 
 std::string LunaPmsRoot::generateRandomString( size_t length )
 {
-    auto randchar = []() -> char
+    auto randchar = [this]() -> char
     {
         const char charset[] =
         "0123456789"
@@ -1074,7 +1073,10 @@ std::string LunaPmsRoot::generateRandomString( size_t length )
 
         fp = fopen("/dev/urandom", "r");
         if (fp) {
-           (void)fread(&random, sizeof(random), 1, fp);
+           if(fread(&random, sizeof(random), 1, fp) != sizeof(random))
+           {
+               MSG_DEBUG("urandom file read error");
+           }
            (void)fclose(fp);
         }
 
