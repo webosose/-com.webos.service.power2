@@ -1,0 +1,5 @@
+{
+"allowedNames":["com.webos.service.power2"],
+"power.operation": ["dev"],
+"power.management": ["oem"]
+}

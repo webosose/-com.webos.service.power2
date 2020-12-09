@@ -1,15 +1,18 @@
 {
-  "system": [
-    "com.webos.service.power2/acquireWakeLock",
-    "com.webos.service.power2/getPowerOnReason",
-    "com.webos.service.power2/getState",
-    "com.webos.service.power2/notifyAlarmExpiry",
-    "com.webos.service.power2/reboot",
-    "com.webos.service.power2/registerStateTransition",
-    "com.webos.service.power2/releaseWakeLock",
-    "com.webos.service.power2/respondStateTransitionAck",
-    "com.webos.service.power2/setPowerOnReason",
-    "com.webos.service.power2/setState",
-    "com.webos.service.power2/shutdown"
-  ]
+"power.operation": [
+"com.webos.service.power2/getPowerOnReason",
+"com.webos.service.power2/getState",
+"com.webos.service.power2/acquireWakeLock",
+"com.webos.service.power2/releaseWakeLock",
+"com.webos.service.power2/registerStateTransition",
+"com.webos.service.power2/notifyAlarmExpiry",
+"com.webos.service.power2/respondStateTransitionAck"
+],
+
+"power.management": [
+"com.webos.service.power2/reboot",
+"com.webos.service.power2/setPowerOnReason",
+"com.webos.service.power2/setState",
+"com.webos.service.power2/shutdown"
+]
 }
