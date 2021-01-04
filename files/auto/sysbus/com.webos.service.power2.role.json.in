@@ -1,0 +1,13 @@
+{
+       "exeName":"@WEBOS_INSTALL_SBINDIR@/powermgr",
+       "trustLevel": "oem",
+       "type": "regular",
+       "allowedNames": ["com.webos.service.power2"],
+       "permissions": [
+           {
+               "service":"com.webos.service.power2",
+               "outbound":["com.webos.service.connectionmanager", "com.webos.service.vehicle"]
+           }
+       ]
+}
+

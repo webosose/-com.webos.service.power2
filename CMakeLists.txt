@@ -116,7 +116,12 @@ install(PROGRAMS scripts/public/set_cpu_offline DESTINATION ${WEBOS_INSTALL_SBIN
 install(PROGRAMS scripts/public/update_timestamp DESTINATION ${WEBOS_INSTALL_SBINDIR})
 
 webos_build_daemon()
-webos_build_system_bus_files()
+
+if(WEBOS_TARGET_DISTRO STREQUAL "webos-auto")
+	webos_build_system_bus_files(files/auto/sysbus)
+elseif(WEBOS_TARGET_DISTRO STREQUAL "webos")
+	webos_build_system_bus_files(files/ose/sysbus)
+endif()
 
 #unit test for power manager service(${CMAKE_PROJECT_NAME})
 #for gtest framework
