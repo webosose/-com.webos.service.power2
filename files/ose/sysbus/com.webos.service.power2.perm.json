@@ -1,4 +1,4 @@
 {
-  "com.webos.service.power2": ["networking"
+  "com.webos.service.power2": ["networkconnection.query"
   ]
 }
