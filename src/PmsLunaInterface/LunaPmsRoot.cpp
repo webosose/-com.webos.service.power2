@@ -880,7 +880,6 @@ bool LunaPmsRoot::setAlarm(int timeout)
     sTimerCheck = g_timer_source_new_seconds(timeout);
     g_source_set_callback((GSource *)sTimerCheck,(GSourceFunc)timerFired, NULL, NULL);
     g_source_attach((GSource *)sTimerCheck, mLoopContext);
-    g_source_unref((GSource*)sTimerCheck);  //TODO: revisit this line
 #endif
 
     return true;
