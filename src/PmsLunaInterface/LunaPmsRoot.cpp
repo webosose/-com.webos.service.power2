@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2017-2020 LG Electronics, Inc.
+//      Copyright (c) 2017-2021 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -1058,10 +1058,8 @@ bool LunaPmsRoot::handleEvent(const std::string& event)
     return false;
 }
 
-std::string LunaPmsRoot::generateRandomString( size_t length )
-{
-    auto randchar = [this]() -> char
-    {
+std::string LunaPmsRoot::generateRandomString(size_t length) {
+    auto randchar = [this]() -> char {
         const char charset[] =
         "0123456789"
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -1072,16 +1070,15 @@ std::string LunaPmsRoot::generateRandomString( size_t length )
 
         fp = fopen("/dev/urandom", "r");
         if (fp) {
-           if(fread(&random, sizeof(random), 1, fp) != sizeof(random))
-           {
-               MSG_DEBUG("urandom file read error");
+           if (fread(&random, sizeof(random), 1, fp) != 1) {
+               MSG_INFO("urandom file read error");
            }
            (void)fclose(fp);
         }
 
         return charset[ random % max_index ];
     };
-    std::string str(length,0);
-    std::generate_n( str.begin(), length, randchar );
+    std::string str(length, '\0');
+    std::generate_n(str.begin(), length, randchar);
     return str;
 }

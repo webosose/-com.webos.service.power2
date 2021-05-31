@@ -2,3 +2,4 @@
 Name=com.webos.service.power2
 Exec=@WEBOS_INSTALL_SBINDIR@/powermgr
 Type=static
+allowedInSession=false

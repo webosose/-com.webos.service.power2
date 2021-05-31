@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2017-2020 LG Electronics, Inc.
+//      Copyright (c) 2017-2021 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -58,7 +58,6 @@ public:
     //To Handle Fixed State and Transition State
     bool handleStateChange(const std::string& statename);
     bool handleTransitionState(const std::string& processing);
-    bool handlePowerOnReason(const std::string& mPowerOnReason);
 
     static bool addSubscription(LSHandle *sh, LSMessage* message, const std::string key);
     static bool addSubscription(LSHandle *sh, LSMessage* message,  std::string statename, int priority);
@@ -77,7 +76,6 @@ public:
     static bool respondStateTransitionAck(LSHandle *sh, LSMessage *message, void *data);
     static bool reboot(LSHandle *sh, LSMessage *message, void *data);
     static bool shutdown(LSHandle *sh, LSMessage *message, void *data);
-    static bool notifyStateTransition(LSHandle *sh, LSMessage *message, void *data);
     static bool getPowerOnReason(LSHandle *sh, LSMessage *message, void *data);
     static bool setPowerOnReason(LSHandle *sh, LSMessage *message, void *data);
     static bool notifyAlarmExpiry(LSHandle *sh, LSMessage *message, void *data);
@@ -91,7 +89,6 @@ public:
     bool respondStateTransitionAckCb(LSHandle *sh, LSMessage *message, void *data);
     bool rebootCb(LSHandle *sh, LSMessage *message, void *data);
     bool shutdownCb(LSHandle *sh, LSMessage *message, void *data);
-    bool notifyStateTransitionCb(LSHandle *sh, LSMessage *message, void *data);
     bool getPowerOnReasonCb(LSHandle *sh, LSMessage *message, void *data);
     bool setPowerOnReasonCb(LSHandle *sh, LSMessage *message, void *data);
     bool notifyAlarmExpiryCb(LSHandle *sh, LSMessage *message, void *data);
@@ -168,7 +165,6 @@ private:
     static bool mIsObjRegistered;
     static bool mIsTransitionState;
 
-    static const char* mpLogContext;
     static int mpLogTimeOutSec;
 
     std::string mSessionToken;

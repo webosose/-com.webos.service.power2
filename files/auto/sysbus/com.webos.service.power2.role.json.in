@@ -6,7 +6,10 @@
        "permissions": [
            {
                "service":"com.webos.service.power2",
-               "outbound":["com.webos.service.connectionmanager", "com.webos.service.vehicle"]
+               "outbound":["com.webos.service.connectionmanager",
+                            "com.webos.service.vehicle",
+                            "com.webos.service.settings",
+                            "com.webos.service.account"]
            }
        ]
 }
