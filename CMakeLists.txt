@@ -1,6 +1,6 @@
 # @@@LICENSE
 #
-#   Copyright (c) 2017-2020 LG Electronics Inc. All Rights Reserved
+# Copyright (c) 2017-2024 LG Electronics Inc. All Rights Reserved
 #
 # LICENSE@@@
 
@@ -30,8 +30,6 @@ endfunction()
 include(webOS/webOS)
 webos_modules_init(1 0 0 QUALIFIER RC7)
 webos_component(1 0 0)
-
-webos_distro_dep()
 
 include(FindPkgConfig)
 
@@ -97,11 +95,7 @@ install(TARGETS ${CMAKE_PROJECT_NAME}
 
 install(PROGRAMS scripts/public/suspend_action DESTINATION ${WEBOS_INSTALL_SBINDIR})
 webos_build_configured_file(files/conf/pmlog/powermgr.conf SYSCONFDIR pmlog.d)
-if(WEBOS_TARGET_DISTRO STREQUAL "webos-auto")
-	webos_build_configured_file(files/conf/auto/pms.conf LOCALSTATEDIR PMS)
-elseif(WEBOS_TARGET_DISTRO STREQUAL "webos")
-    webos_build_configured_file(files/conf/ose/pms.conf LOCALSTATEDIR PMS)
-endif()
+webos_build_configured_file(files/conf/default/pms.conf LOCALSTATEDIR PMS)
 
 # OYK_2013_07_09 : Add MSM suspend settings
 install(PROGRAMS scripts/public/msm_suspend DESTINATION ${WEBOS_INSTALL_SBINDIR})
@@ -117,11 +111,7 @@ install(PROGRAMS scripts/public/update_timestamp DESTINATION ${WEBOS_INSTALL_SBI
 
 webos_build_daemon()
 
-if(WEBOS_TARGET_DISTRO STREQUAL "webos-auto")
-	webos_build_system_bus_files(files/auto/sysbus)
-elseif(WEBOS_TARGET_DISTRO STREQUAL "webos")
-	webos_build_system_bus_files(files/ose/sysbus)
-endif()
+webos_build_system_bus_files(files/sysbus)
 
 #unit test for power manager service(${CMAKE_PROJECT_NAME})
 #for gtest framework
