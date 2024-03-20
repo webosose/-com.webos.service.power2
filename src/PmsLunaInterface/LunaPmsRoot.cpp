@@ -1,6 +1,6 @@
 // @@@LICENSE
 //
-//      Copyright (c) 2017-2021 LG Electronics, Inc.
+//      Copyright (c) 2017-2024 LG Electronics, Inc.
 //
 // Confidential computer software. Valid license from LG required for
 // possession, use or copying. Consistent with FAR 12.211 and 12.212,
@@ -689,11 +689,21 @@ bool LunaPmsRoot::notifyAlarmExpiryCb(LSHandle *sh, LSMessage *message, void *da
     pbnjson::JValue requestObj;
     int parseError = 0;
 
-    const std::string schema = RELAXED_SCHEMA(PROPS_1(PROP(state, string)));
+    const std::string schema = STRICT_SCHEMA(PROPS_1(PROP(clientId, string))REQUIRED_1(clientId));
     if (!LSUtils::parsePayload(request.getPayload(), requestObj, schema, &parseError)) {
         LSUtils::respondWithError(request, errorInvalidJsonFormat, INVALID_JSON_FORMAT);
         return true;
     }
+
+    std::string clientName = "";
+    clientName = requestObj["clientId"].asString();
+
+    if(clientName.empty()){
+        MSG_DEBUG("Error while passing empty clientId");
+        LSUtils::respondWithError(request, errorInvalidJsonFormat, INVALID_JSON_FORMAT);
+        return true;
+    }
+
 
     // TODO: Later Implement, when alarmd ported
     // Currently below stateName fetching not required
